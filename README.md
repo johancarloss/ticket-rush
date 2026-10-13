@@ -121,12 +121,29 @@ TypeScript (Node.js) e Go, PostgreSQL, Redis, Traefik, Keycloak, Docker Compose,
 
 ## Como executar
 
-Instruções serão adicionadas a partir do Projeto 02, junto com o setup do Docker Compose.
+Requisitos: Docker com o plugin Compose (Docker 25 ou mais recente).
+
+```bash
+cp .env.example .env      # depois troque todos os valores change-me
+docker compose up -d
+docker compose ps         # espere todos ficarem (healthy); o Keycloak leva cerca de 30 s
+```
+
+| Endereço | O quê |
+|---|---|
+| `http://localhost:8180/auth/` | Keycloak, passando pelo Traefik (login de administração com `KEYCLOAK_ADMIN_USER`) |
+| `http://127.0.0.1:8181/dashboard/` | Painel do Traefik, só acessível da própria máquina |
+
+As portas podem ser trocadas no `.env` (`TRAEFIK_HTTP_PORT`, `TRAEFIK_DASHBOARD_PORT`).
+
+O Postgres cria na primeira subida um schema e um usuário para cada serviço, cada usuário com acesso só ao próprio schema (ADR-005), e um database separado para o Keycloak. O script está em [`infra/postgres/init.sh`](infra/postgres/init.sh) e só roda quando o volume está vazio; para recriar do zero, use `docker compose down -v`, que **apaga os dados**.
+
+Os serviços da aplicação ainda não estão no Compose; cada um entra com o próprio esqueleto.
 
 ## Próximos passos
 
 - Contratos HTTP (OpenAPI) de cada serviço, escritos pelo responsável antes do código: Inventário, Checkout e Pagamento. O contrato do evento `TicketIssued` já está em [`docs/contracts/events.md`](docs/contracts/events.md).
-- Docker Compose subindo a infraestrutura e os serviços vazios respondendo `/health`.
+- Esqueleto de cada serviço (Dockerfile e `/health`) entrando no Compose.
 - CI com build e lint dos serviços.
 
 ## Ferramentas de IA utilizadas
