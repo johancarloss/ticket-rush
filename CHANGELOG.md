@@ -4,6 +4,10 @@ Mudanças notáveis do projeto, agrupadas por versão. Cada versão corresponde 
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-13
+
+Documentação de arquitetura do Projeto 02. O setup (Docker Compose e CI) entra na próxima versão.
+
 ### Documentação
 - Diagrama C4 nível 1 (contexto) e nível 2 (containers).
 - ADRs 001 a 007: SAGA híbrida, Traefik com Guard, stack, controle do hold, schema por serviço, Redis Streams e Keycloak.
