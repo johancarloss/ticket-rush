@@ -5,7 +5,7 @@
 
 ## Contexto
 
-O sistema tem seis serviços com riscos diferentes: Inventário e Checkout concentram as regras que não podem falhar (nenhum assento vendido duas vezes, nenhum dinheiro cobrado sem assento), enquanto Pagamento, Notificação e Estatísticas são periféricos e podem cair sem afetar a compra. A equipe tem quatro pessoas: duas querem trabalhar com TypeScript, que já usaram em projetos anteriores, e duas querem aprender Go. Tudo roda numa VPS própria, então o conjunto precisa caber numa máquina só.
+O sistema tem seis serviços com papéis diferentes: Inventário e Checkout concentram as regras que não podem falhar (nenhum assento vendido duas vezes, nenhum dinheiro cobrado sem assento), enquanto Pagamento, Notificação e Estatísticas são periféricos e podem cair sem afetar a compra. Tudo roda numa VPS própria, então o conjunto precisa caber numa máquina só.
 
 ## Decisão
 
@@ -18,7 +18,7 @@ O sistema tem seis serviços com riscos diferentes: Inventário e Checkout conce
 | Pagamento (simulado), Notificação, Estatísticas | Go | Diego |
 | Guard, bots de carga | Go | Johan |
 
-A divisão segue o risco. Os serviços em que um erro quebra as garantias principais ficam na linguagem que os responsáveis já dominam. Go entra nos serviços menores e isolados, onde a curva de aprendizado não ameaça a compra. Go também combina com os bots, que precisam disparar milhares de clientes concorrentes, e com o Guard, que precisa responder rápido a cada requisição.
+Inventário e Checkout, que concentram as regras críticas, ficam juntos em TypeScript. Go fica com os serviços menores e isolados, e também com os bots, que precisam disparar milhares de clientes concorrentes, e com o Guard, que precisa responder rápido a cada requisição.
 
 Como TypeScript e Go não compartilham tipos, os contratos entre serviços são escritos antes do código: OpenAPI para as rotas HTTP e um JSON de exemplo para cada evento.
 
@@ -42,16 +42,10 @@ O framework de cada serviço fica a critério do responsável, desde que exponha
 | Prometheus, Grafana, Jaeger | Métricas, painéis e rastreamento entre serviços | Medir os critérios de sucesso e seguir uma compra por todos os serviços |
 | k6 | Bots de carga (fãs e cambistas) | Scripts de carga com métricas de latência prontas; roda de outra máquina para não disputar CPU com o sistema |
 
-## Alternativas consideradas
-
-- **Tudo em TypeScript.** Menos variedade e um só jeito de fazer as coisas, mas tiraria de dois integrantes o objetivo de aprender Go.
-- **Tudo em Go.** O núcleo crítico ficaria com quem ainda está aprendendo a linguagem.
-- **Go no Inventário.** O caminho mais disputado teria o melhor desempenho, mas seria justamente o serviço de maior risco nas mãos de quem está aprendendo.
-
 ## Consequências
 
 **Positivas**
-- O risco de aprendizado fica contido: um erro em Go afeta só a periferia.
+- Um erro num serviço periférico não afeta a compra.
 - O sistema demonstra na prática que microsserviços podem usar linguagens diferentes, desde que os contratos sejam claros.
 
 **Negativas**
