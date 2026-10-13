@@ -11,7 +11,7 @@ A proposta enviada no Projeto 01 está em [`docs/PROPOSTA.md`](docs/PROPOSTA.md)
 | Entrega | Data | Situação |
 |---|---|---|
 | Projeto 01: definição do grupo e tema | 09/10/2026 | Proposta enviada |
-| Projeto 02: documentação inicial (C4, ADRs, stack, setup) | 06/11/2026 | Documentação pronta; setup em andamento |
+| Projeto 02: documentação inicial (C4, ADRs, stack, setup) | 06/11/2026 | Documentação e infraestrutura prontas (v0.3.0); esqueleto dos serviços em andamento |
 | Projeto 03: documentação final, código e testes | 11/12/2026 | Pendente |
 
 ## Equipe

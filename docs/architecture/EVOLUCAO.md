@@ -25,7 +25,7 @@ Comprador ─► Traefik ─► Guard (token, limite por conta)
 - O limite de assentos por comprador tinha sido colocado no Guard, que não é dono dos pedidos. A regra "cada dado tem um dono" mostrou o erro, e o limite foi para o Checkout.
 - A revisão cruzada dos documentos achou três lacunas que nenhum documento mostrava sozinho: a Notificação precisava de um lugar para guardar os pedidos já notificados, o Keycloak não tinha banco definido, e os nomes de estados e eventos estavam em dois idiomas.
 
-## v0.3: infraestrutura rodando (em andamento)
+## v0.3: infraestrutura rodando (13/10/2026)
 
 Primeira versão que sobe com `docker compose up`: Traefik, PostgreSQL, Redis e Keycloak, todos com healthcheck, e o Guard com duas réplicas respondendo ao `forwardAuth` do Traefik. Ainda sem nenhum serviço da aplicação; uma rota de teste (`/api/whoami`) faz o papel de serviço protegido.
 
