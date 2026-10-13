@@ -11,11 +11,13 @@ services:
       - --api.dashboard=true
       - --api.insecure=true
       - --ping=true
+      - --providers.file.filename=/etc/traefik/dynamic.yml
     ports:
       - "${TRAEFIK_HTTP_PORT:-8180}:80"
       - "127.0.0.1:${TRAEFIK_DASHBOARD_PORT:-8181}:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./infra/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
     networks:
       - edge
     healthcheck:
@@ -92,6 +94,33 @@ services:
       timeout: 5s
       retries: 30
       start_period: 30s
+
+  guard:
+    build: ./services/guard
+    image: ticket-rush/guard:dev
+    deploy:
+      # Two replicas so purchases keep working if one of them dies (ADR-002, fail-closed)
+      replicas: 2
+    networks:
+      - edge
+    healthcheck:
+      test: ["CMD", "/guard", "-healthcheck"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # Temporary route to exercise the Guard end to end until the real services exist.
+  # traefik/whoami echoes back the request it received, including the headers set by the middlewares.
+  whoami:
+    image: traefik/whoami:v1.11.0
+    networks:
+      - edge
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.whoami.rule=PathPrefix(`/api/whoami`)
+      - traefik.http.routers.whoami.entrypoints=web
+      - traefik.http.routers.whoami.middlewares=buyer-auth@file
+      - traefik.http.services.whoami.loadbalancer.server.port=80
 
 networks:
   edge:
