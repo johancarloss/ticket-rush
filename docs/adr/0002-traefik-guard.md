@@ -10,6 +10,48 @@ Toda requisição de fora precisa passar por um ponto único que faça cinco coi
 
 Três dessas coisas são genéricas e iguais em qualquer sistema (HTTPS, roteamento, divisão de tráfego). As outras dependem do nosso domínio: saber quem é o comprador e o que conta como abuso numa venda de ingressos.
 
+## O que são o Traefik e o Guard
+
+### Traefik
+
+O Traefik é um **proxy reverso** de código aberto. Um proxy reverso é um servidor que fica na frente dos serviços e recebe todas as requisições de fora no lugar deles. Funciona como a recepção de um prédio comercial: o visitante não sabe em que sala cada empresa fica, ele fala com a recepção, que confere quem ele é e indica o andar certo.
+
+No Ticket Rush, o comprador só conhece um endereço (por exemplo `https://ticketrush.exemplo`). O Traefik olha o caminho da requisição e decide para onde mandar:
+
+```
+https://ticketrush.exemplo/api/events/...    →  Inventário
+https://ticketrush.exemplo/api/orders/...    →  Checkout
+```
+
+Três coisas fazem o Traefik encaixar bem neste projeto:
+
+- **Configuração pelos próprios containers.** Cada serviço declara no `docker-compose.yml`, por meio de labels, qual caminho ele atende. O Traefik lê essas labels e monta as rotas sozinho; subir um serviço novo não exige editar um arquivo central.
+- **HTTPS automático.** Ele pede e renova os certificados no Let's Encrypt.
+- **Divisão de tráfego por peso.** É possível dizer "mande 90% para a versão 1 do Checkout e 10% para a versão 2". É isso que o Canary usa para testar uma versão nova com parte dos compradores, e o Blue-Green usa para trocar 100% de uma vez.
+
+### Guard
+
+O Guard é um serviço pequeno, escrito pelo grupo em Go. O nome é nosso. Ele não atende o comprador; quem fala com ele é só o Traefik, por meio de um recurso chamado **`forwardAuth`** ("encaminhar para autenticação").
+
+Com o `forwardAuth` ligado numa rota, o Traefik, antes de encaminhar a requisição, faz uma pergunta ao Guard e obedece a resposta:
+
+```
+1. Comprador → Traefik:   POST /api/orders   (com o token no cabeçalho Authorization)
+2. Traefik → Guard:       "posso deixar passar?" (repassa os cabeçalhos da requisição original)
+3. Guard confere:
+     - o token é válido? (assinatura conferida com as chaves do Keycloak)
+     - essa conta já passou de 10 requisições de compra neste segundo? (contador no Redis)
+4. Guard → Traefik:
+     - 200 OK + cabeçalho X-User-Id: 42   → o Traefik encaminha ao Checkout, levando o X-User-Id
+     - 401 (token inválido) ou 429 (muitas requisições) → o Traefik devolve essa resposta ao comprador
+                                                          e o Checkout nem fica sabendo
+```
+
+Duas consequências práticas:
+
+- **Os serviços confiam no `X-User-Id`.** O Checkout não precisa validar token nenhum; ele recebe o ID do comprador já conferido pelo Guard. Isso só é seguro porque o Checkout não é acessível de fora, apenas pelo Traefik.
+- **O Guard é a única parte da entrada com código nosso.** Tudo que é genérico fica no Traefik; o que é específico do Ticket Rush (quem é o comprador e o que conta como excesso) fica no Guard.
+
 ## Decisão
 
 Separar a entrada em duas peças:
