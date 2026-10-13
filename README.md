@@ -113,7 +113,7 @@ TypeScript (Node.js) e Go, PostgreSQL, Redis, Traefik, Keycloak, Docker Compose,
 |---|---|
 | [docs/PROPOSTA.md](docs/PROPOSTA.md) | Proposta do Projeto 01 |
 | [docs/architecture/](docs/architecture/) | Diagramas C4 e [evolução da arquitetura](docs/architecture/EVOLUCAO.md) |
-| [docs/infra/](docs/infra/COMO-EXECUTAR.md) | Como executar e como funciona cada peça de infraestrutura |
+| [docs/infra/](docs/infra/COMO-EXECUTAR.md) | Como executar, como funciona cada peça de infraestrutura e o [CI](docs/infra/CI.md) |
 | [docs/adr/](docs/adr/README.md) | Decisões de arquitetura |
 | [docs/PADROES.md](docs/PADROES.md) | Padrões aplicados e onde |
 | [docs/contracts/](docs/contracts/EVENTOS.md) | Contratos de eventos entre serviços |
@@ -133,7 +133,6 @@ Instruções completas, endereços e comandos em [docs/infra/COMO-EXECUTAR.md](d
 
 - Contratos HTTP (OpenAPI) de cada serviço, escritos pelo responsável antes do código: Inventário, Checkout e Pagamento. O contrato do evento `TicketIssued` já está em [`docs/contracts/EVENTOS.md`](docs/contracts/EVENTOS.md).
 - Esqueleto de cada serviço (Dockerfile e `/health`) entrando no Compose.
-- CI com build e lint dos serviços.
 
 ## Ferramentas de IA utilizadas
 
