@@ -22,6 +22,8 @@ Cada usuário só tem permissão no próprio schema, então um serviço não con
 
 O isolamento é **lógico** (permissões) e não **físico** (máquinas ou instâncias separadas).
 
+A mesma instância também tem um **database separado, `keycloak`**, com um usuário próprio, onde o Keycloak cria e gerencia as tabelas dele (ADR-007). É um database à parte, e não um schema no nosso, porque as tabelas pertencem ao Keycloak e são migradas por ele.
+
 ## Alternativas consideradas
 
 - **Banco compartilhado.** Todos os serviços nas mesmas tabelas. Simples e permite JOIN entre tudo, mas acopla os serviços pelo banco e impede testar a queda de um serviço de verdade.

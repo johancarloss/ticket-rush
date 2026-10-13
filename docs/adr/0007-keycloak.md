@@ -22,6 +22,8 @@ Usar o **Keycloak** para autenticação, com tokens JWT assinados em **RS256**:
 
 O Keycloak só participa do login e da renovação do token. A cada compra, o Guard verifica o token sozinho, com a chave que já tem, sem chamar o Keycloak (ADR-002).
 
+Os usuários, senhas e configurações do Keycloak ficam num database `keycloak` na mesma instância do Postgres (ADR-005). O banco embutido do Keycloak não é usado, porque é indicado só para desenvolvimento e perde os dados quando o container é recriado.
+
 Papéis: `buyer` (comprador) e `organizer` (organizador). O Guard repassa o papel aos serviços junto com o `X-User-Id`.
 
 ## Alternativas consideradas
