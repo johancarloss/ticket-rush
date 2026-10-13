@@ -88,6 +88,7 @@ Sem o Guard, o sistema não sabe quem é o comprador, e deixar passar criaria pe
 
 - **Gateway inteiro escrito em Go.** Teríamos que reimplementar TLS, roteamento, health check e divisão de tráfego por peso, que já existem prontos e testados. O tempo iria para a parte genérica.
 - **Só Traefik.** O rate limit dele é por IP ou por cabeçalho e não entende o que é um comprador; um cambista com vários IPs passaria.
+- **Nginx no lugar do Traefik.** Funciona e é mais rápido, e tem o `auth_request`, equivalente ao `forwardAuth`. Mas a configuração é um arquivo estático que precisa de edição e reload a cada versão que sobe ou desce; no Blue-Green e no Canary isso exige scripts gerando arquivos de upstream. O Traefik descobre os containers pelas labels do Docker e atualiza as rotas sozinho.
 - **Kong.** Tem plugins mais ricos, mas precisa de banco próprio e é mais pesado para configurar, e também não tem regra de domínio.
 
 ## Consequências
@@ -96,6 +97,7 @@ Sem o Guard, o sistema não sabe quem é o comprador, e deixar passar criaria pe
 - Blue-Green e Canary usam um recurso nativo e confiável do Traefik.
 - O código próprio fica concentrado no que é específico do projeto: validar o comprador e conter bots.
 - Inventário e Checkout não ficam expostos; tudo que vem de fora passa pelo Traefik.
+- Se o projeto ganhar um front-end, ele é servido por um Nginx atrás do Traefik, na rota `/`, enquanto a API segue em `/api/...`. O Nginx fica com o que faz melhor (arquivos estáticos) e o Traefik continua sendo a única entrada.
 
 **Negativas e riscos aceitos**
 - **Um salto de rede a mais** em cada requisição de compra (Traefik → Guard). O custo será medido no Jaeger.
