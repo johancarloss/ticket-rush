@@ -1,17 +1,19 @@
 # Middlewares shared by every route that requires a logged-in buyer (ADR-002).
 http:
   middlewares:
-    # A client could send its own X-User-Id; drop it so only the value set by the Guard reaches the services.
+    # A client could send its own identity headers; drop them so only the values set by the Guard reach the services.
     strip-identity:
       headers:
         customRequestHeaders:
           X-User-Id: ""
+          X-User-Roles: ""
 
     guard-auth:
       forwardAuth:
         address: http://guard:8080/verify
         authResponseHeaders:
           - X-User-Id
+          - X-User-Roles
 
     buyer-auth:
       chain:

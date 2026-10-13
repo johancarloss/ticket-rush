@@ -44,11 +44,13 @@ O que foi verificado na prática, e não só no papel:
 - `keycloak_svc` não consegue conectar no database da aplicação.
 - O Keycloak responde pelo Traefik e já publica o endereço das chaves públicas (JWKS), que o Guard vai usar.
 - O Redis está com AOF ligado.
-- Sem token, a rota protegida responde 401 sem chegar ao serviço; com token, passa. Um `X-User-Id` forjado pelo cliente não chega ao serviço ([GUARD.md](../infra/GUARD.md)).
+- O Keycloak sobe com o realm `ticket-rush` importado de um arquivo versionado, com papéis, client e usuários de teste, sem nenhuma senha no repositório ([KEYCLOAK.md](../infra/KEYCLOAK.md)).
+- O Guard confere a assinatura, o emissor, a audiência e a validade dos tokens do Keycloak e devolve quem é o usuário. Tokens inventados ou de outro realm dão 401; um `X-User-Id` forjado pelo cliente é substituído pelo verdadeiro ([GUARD.md](../infra/GUARD.md)).
 - Com uma réplica do Guard derrubada, 10 de 10 compras passaram; com as duas, a compra foi bloqueada e o Keycloak continuou respondendo, como o fail-closed do ADR-002 prevê.
 
 **Aprendizados:**
 - O Traefik `v3.3.4` não enxergava os containers, porque usa uma versão da API do Docker que o Docker 29 não aceita mais. A imagem foi fixada em `v3.7.13` ([TRAEFIK.md](../infra/TRAEFIK.md)). Fixar versões evita surpresas, mas uma versão fixada pode envelhecer em relação ao ambiente.
 - Separar as redes `edge` e `data` impede que o Traefik alcance os bancos, mesmo com uma rota errada.
 - O `forwardAuth` só repassa ao serviço os cabeçalhos que o Guard devolve, mas deixa passar os que o cliente mandou. Sem o middleware que apaga o `X-User-Id` de entrada, um comprador poderia se passar por outro. O problema apareceu ao desenhar o fluxo, antes de existir código que confiasse no cabeçalho.
+- O `govulncheck` encontrou 9 vulnerabilidades da biblioteca padrão do Go 1.27.1 alcançáveis pelo Guard, todas corrigidas no 1.27.2. A regra de esperar duas semanas antes de adotar uma versão nova foi pensada para pacotes de terceiros; para uma correção de segurança oficial da própria linguagem, esperar seria manter falhas conhecidas abertas. A exceção ficou registrada no GUARD.md.
 - Recriar o Postgres derrubou as conexões abertas do Keycloak, e a primeira requisição depois disso deu erro 500. O Keycloak se recuperou sozinho na seguinte; é um efeito esperado de reiniciar o banco, e não uma dependência entre Keycloak e Guard.
