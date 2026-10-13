@@ -64,9 +64,11 @@ Uma mudança lógica por commit. Detalhes e motivação vão na descrição do p
 3. Pelo menos **um outro integrante** revisa e aprova.
 4. Quem abriu o PR faz o merge depois da aprovação.
 
-O PR de entrega (`develop → main`) é aberto ao fechar cada Projeto. Junto com ele:
+O PR de release (`develop → main`) é aberto a cada marco concluído, sem esperar o fim de um Projeto. Junto com ele:
 - o `CHANGELOG.md` é atualizado, movendo o que está em `[Unreleased]` para a versão nova;
-- a `main` recebe uma tag (`v0.1.0` para o Projeto 01, `v0.2.0` para o 02, `v1.0.0` para o 03).
+- depois do merge, a `main` recebe uma tag com a versão (`v0.X.0`).
+
+O CHANGELOG indica qual versão foi entregue em cada Projeto. A versão `v1.0.0` fica para a entrega final (Projeto 03).
 
 ## Decisões de arquitetura
 
