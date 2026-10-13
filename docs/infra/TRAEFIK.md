@@ -38,8 +38,8 @@ Além das labels dos containers, o Traefik lê um arquivo fixo, [`infra/traefik/
 
 | Middleware | O que faz |
 |---|---|
-| `strip-identity` | Apaga o cabeçalho `X-User-Id` que vier do cliente |
-| `guard-auth` | `forwardAuth`: pergunta ao Guard se a requisição pode passar e repassa o `X-User-Id` que ele devolver |
+| `strip-identity` | Apaga os cabeçalhos `X-User-Id` e `X-User-Roles` que vierem do cliente |
+| `guard-auth` | `forwardAuth`: pergunta ao Guard se a requisição pode passar e repassa o `X-User-Id` e o `X-User-Roles` que ele devolver |
 | `buyer-auth` | Corrente com os dois acima, nessa ordem. É o que as rotas de compra usam |
 
 Detalhes do fluxo em [GUARD.md](GUARD.md).
