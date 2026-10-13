@@ -41,7 +41,7 @@ flowchart TB
     checkout["<b>Checkout</b><br/>[TypeScript / Node]<br/>Orquestra a compra (SAGA):<br/>reservar, pagar, confirmar ou compensar"]
     notification["<b>Notificação</b><br/>[Go]<br/>Envia o e-mail de confirmação"]
     stats["<b>Estatísticas</b><br/>[Go]<br/>Contadores de vendas por evento"]
-    postgres[("<b>PostgreSQL</b><br/>Um schema por serviço:<br/>inventory, checkout, stats")]
+    postgres[("<b>PostgreSQL</b><br/>Um schema por serviço:<br/>inventory, checkout,<br/>notification, stats")]
     redis[("<b>Redis</b><br/>Cache do mapa de assentos<br/>e streams de eventos")]
   end
 
@@ -70,6 +70,7 @@ flowchart TB
   redis -- "consome IngressoEmitido" --> notification
   redis -- "consome IngressoEmitido" --> stats
   stats -- "SQL" --> postgres
+  notification -- "SQL" --> postgres
   notification -- "SMTP" --> email
 
   classDef person fill:#08427b,stroke:#052e56,color:#fff

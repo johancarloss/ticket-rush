@@ -17,7 +17,9 @@ Usar **Redis Streams** para os eventos.
 - Notificação e Estatísticas têm cada um o seu **consumer group**. Cada grupo recebe todas as mensagens e lê no próprio ritmo; se um ficar para trás, não atrasa o outro.
 - Depois de processar, o consumidor confirma com `XACK`. Uma mensagem lida e não confirmada (o consumidor caiu no meio) continua pendente e é reprocessada.
 - **DLQ:** se a mesma mensagem falhar 3 vezes, o consumidor a move para o stream `tickets.issued.dead` e confirma a original. A contagem de tentativas vem do próprio Redis (`XPENDING` informa quantas vezes a mensagem foi entregue).
-- Os consumidores ignoram um pedido que já processaram, pelo ID do pedido, porque o Outbox (ADR-001) pode publicar o mesmo evento duas vezes.
+- Os consumidores ignoram um pedido que já processaram, porque o Outbox (ADR-001) pode publicar o mesmo evento duas vezes. Cada um guarda os IDs processados no próprio schema (ADR-005):
+  - **Notificação:** antes de enviar, insere o ID em `notification.sent_emails`, que tem o ID do pedido como chave primária. Se o ID já existe, o banco recusa a inserção e o e-mail não é enviado de novo.
+  - **Estatísticas:** insere o ID em `stats.processed_orders` e incrementa os contadores na mesma transação; um evento repetido falha na inserção e não conta duas vezes.
 
 Assim, o Redis passa a ter três papéis: cache de leitura, contadores do Guard e streams de eventos.
 

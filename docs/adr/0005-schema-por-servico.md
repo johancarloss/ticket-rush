@@ -5,7 +5,7 @@
 
 ## Contexto
 
-Inventário, Checkout e Estatísticas guardam dados. Se dois serviços puderem ler e gravar as mesmas tabelas, eles ficam acoplados pelo banco: uma mudança de coluna feita por um quebra o outro, e a queda de um serviço deixa de ser uma falha real, porque o outro continua lendo os dados dele direto. Ao mesmo tempo, tudo roda numa VPS só, e cada instância de Postgres consome memória e precisa de backup e monitoramento.
+Inventário, Checkout, Notificação e Estatísticas guardam dados. Se dois serviços puderem ler e gravar as mesmas tabelas, eles ficam acoplados pelo banco: uma mudança de coluna feita por um quebra o outro, e a queda de um serviço deixa de ser uma falha real, porque o outro continua lendo os dados dele direto. Ao mesmo tempo, tudo roda numa VPS só, e cada instância de Postgres consome memória e precisa de backup e monitoramento.
 
 ## Decisão
 
@@ -15,6 +15,7 @@ Uma única instância de PostgreSQL, com um **schema por serviço** e um **usuá
 |---|---|---|---|
 | Inventário | `inventory` | `inventory_svc` | só no schema `inventory` |
 | Checkout | `checkout` | `checkout_svc` | só no schema `checkout` |
+| Notificação | `notification` | `notification_svc` | só no schema `notification` |
 | Estatísticas | `stats` | `stats_svc` | só no schema `stats` |
 
 Cada usuário só tem permissão no próprio schema, então um serviço não consegue ler a tabela de outro nem por engano. Quando o Checkout precisa saber de um assento, ele pergunta ao Inventário pela API.
