@@ -7,8 +7,8 @@ Padrões da seção 5 do enunciado aplicados no Ticket Rush, com o problema que 
 | Área | Padrão | Problema que resolve no projeto | Onde |
 |---|---|---|---|
 | Confiabilidade | SAGA com orquestração | A compra passa por Inventário e Pagamento, com bancos separados; se o pagamento falhar depois da reserva, o assento precisa ser liberado sem uma transação única | [ADR-001](adr/0001-saga-hibrida.md) |
-| Confiabilidade | Coreografia | Depois da compra, Notificação e Estatísticas reagem ao evento `IngressoEmitido` sem o Checkout saber quem são | [ADR-001](adr/0001-saga-hibrida.md), [ADR-006](adr/0006-redis-streams.md) |
-| Confiabilidade | Transactional Outbox | O Checkout pode cair entre gravar CONFIRMADO e publicar o evento; o evento é gravado na mesma transação e publicado depois | [ADR-001](adr/0001-saga-hibrida.md) |
+| Confiabilidade | Coreografia | Depois da compra, Notificação e Estatísticas reagem ao evento `TicketIssued` sem o Checkout saber quem são | [ADR-001](adr/0001-saga-hibrida.md), [ADR-006](adr/0006-redis-streams.md) |
+| Confiabilidade | Transactional Outbox | O Checkout pode cair entre gravar CONFIRMED e publicar o evento; o evento é gravado na mesma transação e publicado depois | [ADR-001](adr/0001-saga-hibrida.md) |
 | Confiabilidade | Retry e DLQ | Um consumidor que falha não pode perder a mensagem nem travar as outras; após 3 falhas ela vai para um stream de mensagens mortas | [ADR-006](adr/0006-redis-streams.md) |
 | Desempenho | Queues / PubSub / Messaging Fanout | Um evento, vários consumidores, cada um no seu ritmo (consumer groups do Redis Streams) | [ADR-006](adr/0006-redis-streams.md) |
 | Desempenho | Cache-Aside | Milhares de compradores consultando o mapa de assentos ao mesmo tempo | [ADR-004](adr/0004-controle-do-hold.md) |

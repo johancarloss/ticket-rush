@@ -61,14 +61,14 @@ flowchart TB
 
   checkout -- "reservar, liberar, vender [HTTP]" --> inventory
   checkout -- "cobrar, estornar [HTTP]" --> payment
-  checkout -- "publica IngressoEmitido" --> redis
+  checkout -- "publica TicketIssued" --> redis
 
   inventory -- "SQL" --> postgres
   inventory -- "cache do mapa" --> redis
   checkout -- "SQL" --> postgres
 
-  redis -- "consome IngressoEmitido" --> notification
-  redis -- "consome IngressoEmitido" --> stats
+  redis -- "consome TicketIssued" --> notification
+  redis -- "consome TicketIssued" --> stats
   stats -- "SQL" --> postgres
   notification -- "SQL" --> postgres
   notification -- "SMTP" --> email

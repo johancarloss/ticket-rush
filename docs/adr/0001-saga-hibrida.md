@@ -17,32 +17,38 @@ Depois que a compra fecha, outros serviços precisam saber dela (Notificação e
 Usar uma **SAGA**: a compra é dividida em passos locais, cada um com uma ação que o desfaz (compensação), em vez de uma transação única. Ela é **híbrida**:
 
 - **Orquestração na compra.** O Checkout conhece a sequência e comanda cada passo. Cada pedido é uma SAGA, do reservar até o estado final.
-- **Coreografia depois da compra.** O Checkout publica o evento `IngressoEmitido` e quem tiver interesse reage, sem o Checkout saber quem são.
+- **Coreografia depois da compra.** O Checkout publica o evento `TicketIssued` e quem tiver interesse reage, sem o Checkout saber quem são.
 
 ### Estados do pedido
 
 ```mermaid
 stateDiagram-v2
-  [*] --> RESERVADO: reservar (assento preso por 5 min)
-  RESERVADO --> PAGANDO: pagar (tempo do hold renovado)
-  RESERVADO --> CANCELADO: tempo acabou
-  PAGANDO --> CONFIRMADO: pagamento aprovado e assento vendido
-  PAGANDO --> CANCELADO: pagamento recusado (assento liberado)
-  PAGANDO --> AGUARDANDO_ESTORNO: cobrou, mas a venda falhou
-  AGUARDANDO_ESTORNO --> CANCELADO: estorno concluído
-  CONFIRMADO --> [*]
-  CANCELADO --> [*]
+  [*] --> RESERVED: reservar (assento preso por 5 min)
+  RESERVED --> PAYING: pagar (tempo do hold renovado)
+  RESERVED --> CANCELLED: tempo acabou
+  PAYING --> CONFIRMED: pagamento aprovado e assento vendido
+  PAYING --> CANCELLED: pagamento recusado (assento liberado)
+  PAYING --> AWAITING_REFUND: cobrou, mas a venda falhou
+  AWAITING_REFUND --> CANCELLED: estorno concluído
+  CONFIRMED --> [*]
+  CANCELLED --> [*]
 ```
 
-O CANCELADO guarda o motivo (expirou, pagamento recusado, venda falhou).
+| Estado | Significado |
+|---|---|
+| `RESERVED` | Assento reservado, esperando o comprador pagar |
+| `PAYING` | Cobrança em andamento |
+| `CONFIRMED` | Pago e assento vendido |
+| `CANCELLED` | Encerrado sem venda; guarda o motivo (expirou, pagamento recusado, venda falhou) |
+| `AWAITING_REFUND` | Cobrou, mas a venda falhou; o estorno está pendente |
 
 ### Regras
 
 1. **O tempo de 5 minutos é como o servidor percebe que a pessoa saiu.** Fechar a aba ou perder a conexão não avisa nada ao servidor; sem o tempo limite, o assento ficaria preso para sempre. Ao clicar em pagar, o tempo é renovado para o assento não escapar durante o pagamento.
 2. **Grava antes de agir.** Toda mudança de estado é salva no Postgres (schema `checkout`) antes de chamar outro serviço.
-3. **Repetir é seguro.** A passagem de RESERVADO para PAGANDO é um `UPDATE ... WHERE status = 'RESERVADO'`, então um segundo clique em pagar é recusado. Toda cobrança e todo estorno levam o cabeçalho `Idempotency-Key` derivado do ID do pedido; o Pagamento guarda a chave e, ao recebê-la de novo, devolve o resultado da primeira chamada em vez de cobrar outra vez.
-4. **Um job de recuperação termina o que ficou pela metade.** Ele procura pedidos parados em PAGANDO ou AGUARDANDO_ESTORNO. Para PAGANDO, primeiro pergunta ao Pagamento se aquele pedido foi pago (consulta pelo ID), e só então confirma ou estorna. Para AGUARDANDO_ESTORNO, tenta o estorno de novo a cada ciclo até conseguir.
-5. **Transactional Outbox para o evento pós-compra.** Na mesma transação que grava CONFIRMADO, o Checkout grava o `IngressoEmitido` na tabela `outbox`. O job publica os eventos pendentes no Redis Streams e marca como enviados. Se cair entre publicar e marcar, o evento sai de novo, então Notificação e Estatísticas ignoram um pedido que já processaram.
+3. **Repetir é seguro.** A passagem de RESERVED para PAYING é um `UPDATE ... WHERE status = 'RESERVED'`, então um segundo clique em pagar é recusado. Toda cobrança e todo estorno levam o cabeçalho `Idempotency-Key` derivado do ID do pedido; o Pagamento guarda a chave e, ao recebê-la de novo, devolve o resultado da primeira chamada em vez de cobrar outra vez.
+4. **Um job de recuperação termina o que ficou pela metade.** Ele procura pedidos parados em PAYING ou AWAITING_REFUND. Para PAYING, primeiro pergunta ao Pagamento se aquele pedido foi pago (consulta pelo ID), e só então confirma ou estorna. Para AWAITING_REFUND, tenta o estorno de novo a cada ciclo até conseguir.
+5. **Transactional Outbox para o evento pós-compra.** Na mesma transação que grava CONFIRMED, o Checkout grava o `TicketIssued` na tabela `outbox`. O job publica os eventos pendentes no Redis Streams e marca como enviados. Se cair entre publicar e marcar, o evento sai de novo, então Notificação e Estatísticas ignoram um pedido que já processaram.
 6. **DLQ nos consumidores.** Se um consumidor falhar 3 vezes na mesma mensagem, ela vai para um stream de mensagens mortas, para análise.
 
 ### Casos com dinheiro
@@ -77,7 +83,7 @@ O CANCELADO guarda o motivo (expirou, pagamento recusado, venda falhou).
 
 ## Como validar
 
-- Derrubar o Checkout (`docker kill`) durante o teste de carga: todo pedido deve terminar CONFIRMADO ou CANCELADO, sem cobrança duplicada.
+- Derrubar o Checkout (`docker kill`) durante o teste de carga: todo pedido deve terminar CONFIRMED ou CANCELLED, sem cobrança duplicada.
 - Configurar o Pagamento para recusar 20% das cobranças: nenhum assento deve ficar preso.
 - Derrubar o Pagamento enquanto há estornos pendentes e subir de novo: todos devem ser concluídos.
 - Enviar o mesmo pagamento duas vezes: uma cobrança só.

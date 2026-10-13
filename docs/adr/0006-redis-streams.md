@@ -5,7 +5,7 @@
 
 ## Contexto
 
-Depois que uma compra é confirmada, Notificação e Estatísticas precisam saber dela, mas o comprador não deve esperar por eles (ADR-001). Para isso o Checkout publica o evento `IngressoEmitido` e os dois o consomem de forma assíncrona. É preciso escolher a ferramenta de mensageria.
+Depois que uma compra é confirmada, Notificação e Estatísticas precisam saber dela, mas o comprador não deve esperar por eles (ADR-001). Para isso o Checkout publica o evento `TicketIssued` e os dois o consomem de forma assíncrona. É preciso escolher a ferramenta de mensageria.
 
 O Redis já faz parte do sistema como cache do mapa de assentos (ADR-004) e para os contadores do Guard (ADR-002).
 
