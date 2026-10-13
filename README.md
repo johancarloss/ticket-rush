@@ -4,7 +4,7 @@ Projeto final de Engenharia de Sistemas Distribuídos (UFPB, 2026.2), Prof. Raon
 
 Sistema de venda de ingressos com reserva de assentos para aberturas de venda de alta demanda. Milhares de compradores disputam poucos assentos ao mesmo tempo, a compra passa por vários serviços que podem falhar no meio do caminho, e bots de cambistas tentam reservar em massa. O objetivo é que nenhum assento seja vendido duas vezes, que nenhuma reserva fique presa quando um serviço cai, e que os bots sejam contidos sem prejudicar os compradores reais.
 
-A proposta enviada no Projeto 01 está em [`docs/proposta.md`](docs/proposta.md).
+A proposta enviada no Projeto 01 está em [`docs/PROPOSTA.md`](docs/PROPOSTA.md).
 
 ## Status
 
@@ -89,10 +89,10 @@ flowchart TB
 ```
 
 Mais detalhes:
-- [C4 nível 1: contexto](docs/architecture/c4-1-contexto.md)
-- [C4 nível 2: containers](docs/architecture/c4-2-containers.md), com as decisões e trade-offs deste nível
+- [C4 nível 1: contexto](docs/architecture/C4-1-CONTEXTO.md)
+- [C4 nível 2: containers](docs/architecture/C4-2-CONTAINERS.md), com as decisões e trade-offs deste nível
 - [Decisões de arquitetura (ADRs)](docs/adr/README.md)
-- [Padrões arquiteturais](docs/padroes.md)
+- [Padrões arquiteturais](docs/PADROES.md)
 
 ## Responsabilidades
 
@@ -105,28 +105,34 @@ Mais detalhes:
 
 ## Tecnologias
 
-TypeScript (Node.js) e Go, PostgreSQL, Redis, Traefik, Keycloak, Docker Compose, GitHub Actions, Prometheus, Grafana, Jaeger e k6. A justificativa de cada uma está no [ADR-003](docs/adr/0003-stack.md).
+TypeScript (Node.js) e Go, PostgreSQL, Redis, Traefik, Keycloak, Docker Compose, GitHub Actions, Prometheus, Grafana, Jaeger e k6. A justificativa de cada uma está no [ADR-003](docs/adr/0003-STACK.md).
 
 ## Documentação
 
 | Documento | Conteúdo |
 |---|---|
-| [docs/proposta.md](docs/proposta.md) | Proposta do Projeto 01 |
-| [docs/architecture/](docs/architecture/) | Diagramas C4 |
+| [docs/PROPOSTA.md](docs/PROPOSTA.md) | Proposta do Projeto 01 |
+| [docs/architecture/](docs/architecture/) | Diagramas C4 e [evolução da arquitetura](docs/architecture/EVOLUCAO.md) |
+| [docs/infra/](docs/infra/COMO-EXECUTAR.md) | Como executar e como funciona cada peça de infraestrutura |
 | [docs/adr/](docs/adr/README.md) | Decisões de arquitetura |
-| [docs/padroes.md](docs/padroes.md) | Padrões aplicados e onde |
-| [docs/contracts/](docs/contracts/events.md) | Contratos de eventos entre serviços |
+| [docs/PADROES.md](docs/PADROES.md) | Padrões aplicados e onde |
+| [docs/contracts/](docs/contracts/EVENTOS.md) | Contratos de eventos entre serviços |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Branches, commits e pull requests |
 | [CHANGELOG.md](CHANGELOG.md) | Mudanças por versão |
 
 ## Como executar
 
-Instruções serão adicionadas a partir do Projeto 02, junto com o setup do Docker Compose.
+```bash
+cp .env.example .env      # depois troque todos os valores change-me
+docker compose up -d
+```
+
+Instruções completas, endereços e comandos em [docs/infra/COMO-EXECUTAR.md](docs/infra/COMO-EXECUTAR.md).
 
 ## Próximos passos
 
-- Contratos HTTP (OpenAPI) de cada serviço, escritos pelo responsável antes do código: Inventário, Checkout e Pagamento. O contrato do evento `TicketIssued` já está em [`docs/contracts/events.md`](docs/contracts/events.md).
-- Docker Compose subindo a infraestrutura e os serviços vazios respondendo `/health`.
+- Contratos HTTP (OpenAPI) de cada serviço, escritos pelo responsável antes do código: Inventário, Checkout e Pagamento. O contrato do evento `TicketIssued` já está em [`docs/contracts/EVENTOS.md`](docs/contracts/EVENTOS.md).
+- Esqueleto de cada serviço (Dockerfile e `/health`) entrando no Compose.
 - CI com build e lint dos serviços.
 
 ## Ferramentas de IA utilizadas
