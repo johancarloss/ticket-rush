@@ -115,12 +115,19 @@ TypeScript (Node.js) e Go, PostgreSQL, Redis, Traefik, Keycloak, Docker Compose,
 | [docs/architecture/](docs/architecture/) | Diagramas C4 |
 | [docs/adr/](docs/adr/README.md) | Decisões de arquitetura |
 | [docs/padroes.md](docs/padroes.md) | Padrões aplicados e onde |
+| [docs/contracts/](docs/contracts/events.md) | Contratos de eventos entre serviços |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Branches, commits e pull requests |
 | [CHANGELOG.md](CHANGELOG.md) | Mudanças por versão |
 
 ## Como executar
 
 Instruções serão adicionadas a partir do Projeto 02, junto com o setup do Docker Compose.
+
+## Próximos passos
+
+- Contratos HTTP (OpenAPI) de cada serviço, escritos pelo responsável antes do código: Inventário, Checkout e Pagamento. O contrato do evento `TicketIssued` já está em [`docs/contracts/events.md`](docs/contracts/events.md).
+- Docker Compose subindo a infraestrutura e os serviços vazios respondendo `/health`.
+- CI com build e lint dos serviços.
 
 ## Ferramentas de IA utilizadas
 
