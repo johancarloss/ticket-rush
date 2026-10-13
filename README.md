@@ -112,7 +112,8 @@ TypeScript (Node.js) e Go, PostgreSQL, Redis, Traefik, Keycloak, Docker Compose,
 | Documento | Conteúdo |
 |---|---|
 | [docs/PROPOSTA.md](docs/PROPOSTA.md) | Proposta do Projeto 01 |
-| [docs/architecture/](docs/architecture/) | Diagramas C4 |
+| [docs/architecture/](docs/architecture/) | Diagramas C4 e [evolução da arquitetura](docs/architecture/EVOLUCAO.md) |
+| [docs/infra/](docs/infra/COMO-EXECUTAR.md) | Como executar e como funciona cada peça de infraestrutura |
 | [docs/adr/](docs/adr/README.md) | Decisões de arquitetura |
 | [docs/PADROES.md](docs/PADROES.md) | Padrões aplicados e onde |
 | [docs/contracts/](docs/contracts/EVENTOS.md) | Contratos de eventos entre serviços |
@@ -121,24 +122,12 @@ TypeScript (Node.js) e Go, PostgreSQL, Redis, Traefik, Keycloak, Docker Compose,
 
 ## Como executar
 
-Requisitos: Docker com o plugin Compose (Docker 25 ou mais recente).
-
 ```bash
 cp .env.example .env      # depois troque todos os valores change-me
 docker compose up -d
-docker compose ps         # espere todos ficarem (healthy); o Keycloak leva cerca de 30 s
 ```
 
-| Endereço | O quê |
-|---|---|
-| `http://localhost:8180/auth/` | Keycloak, passando pelo Traefik (login de administração com `KEYCLOAK_ADMIN_USER`) |
-| `http://127.0.0.1:8181/dashboard/` | Painel do Traefik, só acessível da própria máquina |
-
-As portas podem ser trocadas no `.env` (`TRAEFIK_HTTP_PORT`, `TRAEFIK_DASHBOARD_PORT`).
-
-O Postgres cria na primeira subida um schema e um usuário para cada serviço, cada usuário com acesso só ao próprio schema (ADR-005), e um database separado para o Keycloak. O script está em [`infra/postgres/init.sh`](infra/postgres/init.sh) e só roda quando o volume está vazio; para recriar do zero, use `docker compose down -v`, que **apaga os dados**.
-
-Os serviços da aplicação ainda não estão no Compose; cada um entra com o próprio esqueleto.
+Instruções completas, endereços e comandos em [docs/infra/COMO-EXECUTAR.md](docs/infra/COMO-EXECUTAR.md).
 
 ## Próximos passos
 
