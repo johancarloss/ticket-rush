@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -26,9 +27,15 @@ func main() {
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
+	validator := &tokenValidator{
+		keys:     newKeySet(mustEnv("KEYCLOAK_JWKS_URL")),
+		issuer:   mustEnv("TOKEN_ISSUER"),
+		audience: mustEnv("TOKEN_AUDIENCE"),
+	}
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", handleHealth)
-	mux.HandleFunc("/verify", verifyHandler(logger))
+	mux.HandleFunc("/verify", verifyHandler(logger, validator))
 
 	server := &http.Server{
 		Addr:              ":" + port,
@@ -63,8 +70,8 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 // verifyHandler answers Traefik's forwardAuth: 2xx lets the request through, anything else is sent back to the client.
-// For now it only requires a Bearer token to be present; signature validation against Keycloak comes next.
-func verifyHandler(logger *slog.Logger) http.HandlerFunc {
+// On success it returns who the buyer is in X-User-Id and X-User-Roles, which Traefik forwards to the service.
+func verifyHandler(logger *slog.Logger, validator *tokenValidator) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		method := r.Header.Get("X-Forwarded-Method")
 		uri := r.Header.Get("X-Forwarded-Uri")
@@ -76,7 +83,16 @@ func verifyHandler(logger *slog.Logger) http.HandlerFunc {
 			return
 		}
 
-		logger.Info("request allowed", "method", method, "uri", uri)
+		user, err := validator.validate(token)
+		if err != nil {
+			logger.Info("request denied", "reason", denyReason(err), "method", method, "uri", uri, "error", err.Error())
+			writeJSONError(w, http.StatusUnauthorized, "invalid token")
+			return
+		}
+
+		logger.Info("request allowed", "user_id", user.ID, "method", method, "uri", uri)
+		w.Header().Set("X-User-Id", user.ID)
+		w.Header().Set("X-User-Roles", strings.Join(user.Roles, ","))
 		w.WriteHeader(http.StatusOK)
 	}
 }
@@ -106,6 +122,15 @@ func runHealthcheck(port string) int {
 		return 1
 	}
 	return 0
+}
+
+func mustEnv(key string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		fmt.Fprintf(os.Stderr, "missing required environment variable %s\n", key)
+		os.Exit(1)
+	}
+	return value
 }
 
 func envOr(key, fallback string) string {
