@@ -1,5 +1,7 @@
 # Proposta de Projeto — Engenharia de Sistemas Distribuídos 2026.2
 
+> Documento entregue no Projeto 01 (09/10/2026) e mantido como foi enviado. A arquitetura evoluiu desde então; a versão atual está nos [diagramas C4](architecture/) e nos [ADRs](adr/README.md).
+
 **Título:** Venda de ingressos sob alta demanda: reserva de assentos resistente a falhas e a bots
 
 **Equipe:**
