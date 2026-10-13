@@ -64,7 +64,7 @@ services:
 
   keycloak:
     image: quay.io/keycloak/keycloak:26.1.4
-    command: ["start-dev"]
+    command: ["start-dev", "--import-realm"]
     environment:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
@@ -76,6 +76,9 @@ services:
       KC_HOSTNAME: http://localhost:${TRAEFIK_HTTP_PORT:-8180}/auth
       KC_PROXY_HEADERS: xforwarded
       KC_HEALTH_ENABLED: "true"
+      KC_TEST_USERS_PASSWORD: ${KC_TEST_USERS_PASSWORD}
+    volumes:
+      - ./infra/keycloak/ticket-rush-realm.json:/opt/keycloak/data/import/ticket-rush-realm.json:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -98,6 +101,11 @@ services:
   guard:
     build: ./services/guard
     image: ticket-rush/guard:dev
+    environment:
+      # Keys are fetched over the internal network; the issuer is the public address Keycloak writes in the token
+      KEYCLOAK_JWKS_URL: http://keycloak:8080/auth/realms/ticket-rush/protocol/openid-connect/certs
+      TOKEN_ISSUER: http://localhost:${TRAEFIK_HTTP_PORT:-8180}/auth/realms/ticket-rush
+      TOKEN_AUDIENCE: ticket-rush-api
     deploy:
       # Two replicas so purchases keep working if one of them dies (ADR-002, fail-closed)
       replicas: 2
