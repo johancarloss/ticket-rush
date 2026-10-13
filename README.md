@@ -117,6 +117,7 @@ TypeScript (Node.js) e Go, PostgreSQL, Redis, Traefik, Keycloak, Docker Compose,
 | [docs/adr/](docs/adr/README.md) | Decisões de arquitetura |
 | [docs/PADROES.md](docs/PADROES.md) | Padrões aplicados e onde |
 | [docs/contracts/](docs/contracts/EVENTOS.md) | Contratos de eventos entre serviços |
+| [docs/guides/NOVO-SERVICO.md](docs/guides/NOVO-SERVICO.md) | Passo a passo para criar um serviço |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Branches, commits e pull requests |
 | [CHANGELOG.md](CHANGELOG.md) | Mudanças por versão |
 
@@ -131,8 +132,7 @@ Instruções completas, endereços e comandos em [docs/infra/COMO-EXECUTAR.md](d
 
 ## Próximos passos
 
-- Contratos HTTP (OpenAPI) de cada serviço, escritos pelo responsável antes do código: Inventário, Checkout e Pagamento. O contrato do evento `TicketIssued` já está em [`docs/contracts/EVENTOS.md`](docs/contracts/EVENTOS.md).
-- Esqueleto de cada serviço (Dockerfile e `/health`) entrando no Compose.
+- Contratos HTTP (OpenAPI) e esqueleto de cada serviço, feitos pelo responsável seguindo o [guia de novo serviço](docs/guides/NOVO-SERVICO.md): Inventário, Checkout, Pagamento, Notificação e Estatísticas. O contrato do evento `TicketIssued` já está em [`docs/contracts/EVENTOS.md`](docs/contracts/EVENTOS.md).
 
 ## Ferramentas de IA utilizadas
 

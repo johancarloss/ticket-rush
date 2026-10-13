@@ -27,6 +27,8 @@ Regras:
 - Na `develop`, só por pull request.
 - Uma branch por assunto, de vida curta. Antes de abrir o PR, atualizar a branch com a `develop` mais recente.
 
+Para criar um serviço novo, siga o [guia de novo serviço](docs/guides/NOVO-SERVICO.md).
+
 ## Commits
 
 Formato [Conventional Commits](https://www.conventionalcommits.org/pt-br/v1.0.0/), em inglês:
