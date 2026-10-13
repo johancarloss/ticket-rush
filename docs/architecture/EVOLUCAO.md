@@ -46,6 +46,7 @@ O que foi verificado na prática, e não só no papel:
 - O Redis está com AOF ligado.
 - O Keycloak sobe com o realm `ticket-rush` importado de um arquivo versionado, com papéis, client e usuários de teste, sem nenhuma senha no repositório ([KEYCLOAK.md](../infra/KEYCLOAK.md)).
 - O Guard confere a assinatura, o emissor, a audiência e a validade dos tokens do Keycloak e devolve quem é o usuário. Tokens inventados ou de outro realm dão 401; um `X-User-Id` forjado pelo cliente é substituído pelo verdadeiro ([GUARD.md](../infra/GUARD.md)).
+- O CI roda em todo PR: testes e vulnerabilidades do Guard, validação do Compose, busca de segredos no histórico inteiro e links da documentação ([CI.md](../infra/CI.md)). O Dependabot propõe atualizações com duas semanas de espera.
 - Com uma réplica do Guard derrubada, 10 de 10 compras passaram; com as duas, a compra foi bloqueada e o Keycloak continuou respondendo, como o fail-closed do ADR-002 prevê.
 
 **Aprendizados:**
