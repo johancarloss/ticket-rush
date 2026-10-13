@@ -1,6 +1,6 @@
 # Changelog
 
-Mudanças notáveis do projeto, agrupadas por versão. Cada versão corresponde a uma entrega da disciplina. Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
+Mudanças notáveis do projeto, agrupadas por versão. Cada versão corresponde a um marco concluído, e o texto da versão indica a qual Projeto da disciplina ela pertence. Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
 ## [Unreleased]
 
