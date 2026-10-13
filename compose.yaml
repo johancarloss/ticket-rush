@@ -1,0 +1,139 @@
+name: ticket-rush
+
+services:
+  traefik:
+    image: traefik:v3.7.13
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=ticket-rush_edge
+      - --entrypoints.web.address=:80
+      - --api.dashboard=true
+      - --api.insecure=true
+      - --ping=true
+      - --providers.file.filename=/etc/traefik/dynamic.yml
+    ports:
+      - "${TRAEFIK_HTTP_PORT:-8180}:80"
+      - "127.0.0.1:${TRAEFIK_DASHBOARD_PORT:-8181}:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./infra/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+    networks:
+      - edge
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  postgres:
+    image: postgres:17.4-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_ADMIN_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD}
+      POSTGRES_DB: ticketrush
+      INVENTORY_DB_PASSWORD: ${INVENTORY_DB_PASSWORD}
+      CHECKOUT_DB_PASSWORD: ${CHECKOUT_DB_PASSWORD}
+      NOTIFICATION_DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD}
+      STATS_DB_PASSWORD: ${STATS_DB_PASSWORD}
+      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sh:/docker-entrypoint-initdb.d/init.sh:ro
+    networks:
+      - data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_ADMIN_USER} -d ticketrush"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7.4.2-alpine
+    # AOF keeps stream messages across restarts (ADR-006)
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    networks:
+      - data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.1.4
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak_svc
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USER}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_HTTP_RELATIVE_PATH: /auth
+      KC_HOSTNAME: http://localhost:${TRAEFIK_HTTP_PORT:-8180}/auth
+      KC_PROXY_HEADERS: xforwarded
+      KC_HEALTH_ENABLED: "true"
+      KC_TEST_USERS_PASSWORD: ${KC_TEST_USERS_PASSWORD}
+    volumes:
+      - ./infra/keycloak/ticket-rush-realm.json:/opt/keycloak/data/import/ticket-rush-realm.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - edge
+      - data
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.keycloak.rule=PathPrefix(`/auth`)
+      - traefik.http.routers.keycloak.entrypoints=web
+      - traefik.http.services.keycloak.loadbalancer.server.port=8080
+    healthcheck:
+      # The image has no curl; bash opens a TCP socket to the management port instead
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /auth/health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q '\"UP\"' <&3"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  guard:
+    build: ./services/guard
+    image: ticket-rush/guard:dev
+    environment:
+      # Keys are fetched over the internal network; the issuer is the public address Keycloak writes in the token
+      KEYCLOAK_JWKS_URL: http://keycloak:8080/auth/realms/ticket-rush/protocol/openid-connect/certs
+      TOKEN_ISSUER: http://localhost:${TRAEFIK_HTTP_PORT:-8180}/auth/realms/ticket-rush
+      TOKEN_AUDIENCE: ticket-rush-api
+    deploy:
+      # Two replicas so purchases keep working if one of them dies (ADR-002, fail-closed)
+      replicas: 2
+    networks:
+      - edge
+    healthcheck:
+      test: ["CMD", "/guard", "-healthcheck"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # Temporary route to exercise the Guard end to end until the real services exist.
+  # traefik/whoami echoes back the request it received, including the headers set by the middlewares.
+  whoami:
+    image: traefik/whoami:v1.11.0
+    networks:
+      - edge
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.whoami.rule=PathPrefix(`/api/whoami`)
+      - traefik.http.routers.whoami.entrypoints=web
+      - traefik.http.routers.whoami.middlewares=buyer-auth@file
+      - traefik.http.services.whoami.loadbalancer.server.port=80
+
+networks:
+  edge:
+  data:
+
+volumes:
+  postgres-data:
+  redis-data:
