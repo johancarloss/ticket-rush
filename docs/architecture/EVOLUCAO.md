@@ -27,16 +27,16 @@ Comprador ─► Traefik ─► Guard (token, limite por conta)
 
 ## v0.3: infraestrutura rodando (em andamento)
 
-Primeira versão que sobe com `docker compose up`: Traefik, PostgreSQL, Redis e Keycloak, todos com healthcheck. Ainda sem nenhum serviço da aplicação.
+Primeira versão que sobe com `docker compose up`: Traefik, PostgreSQL, Redis e Keycloak, todos com healthcheck, e o Guard com duas réplicas respondendo ao `forwardAuth` do Traefik. Ainda sem nenhum serviço da aplicação; uma rota de teste (`/api/whoami`) faz o papel de serviço protegido.
 
 ```
              :8180
-Internet ──► Traefik ──/auth──► Keycloak ──┐
-            [rede edge]                     │ [rede data]
-                                            ▼
-                                 Postgres (inventory, checkout,
-                                 notification, stats, keycloak)
-                                 Redis (AOF ligado)
+Internet ──► Traefik ──/auth──────────► Keycloak ──┐
+            [rede edge]                              │ [rede data]
+               │ /api/whoami                         ▼
+               ├── pergunta ──► Guard ×2   Postgres (inventory, checkout,
+               │                           notification, stats, keycloak)
+               └──► whoami (teste)         Redis (AOF ligado)
 ```
 
 O que foi verificado na prática, e não só no papel:
@@ -44,7 +44,11 @@ O que foi verificado na prática, e não só no papel:
 - `keycloak_svc` não consegue conectar no database da aplicação.
 - O Keycloak responde pelo Traefik e já publica o endereço das chaves públicas (JWKS), que o Guard vai usar.
 - O Redis está com AOF ligado.
+- Sem token, a rota protegida responde 401 sem chegar ao serviço; com token, passa. Um `X-User-Id` forjado pelo cliente não chega ao serviço ([GUARD.md](../infra/GUARD.md)).
+- Com uma réplica do Guard derrubada, 10 de 10 compras passaram; com as duas, a compra foi bloqueada e o Keycloak continuou respondendo, como o fail-closed do ADR-002 prevê.
 
 **Aprendizados:**
 - O Traefik `v3.3.4` não enxergava os containers, porque usa uma versão da API do Docker que o Docker 29 não aceita mais. A imagem foi fixada em `v3.7.13` ([TRAEFIK.md](../infra/TRAEFIK.md)). Fixar versões evita surpresas, mas uma versão fixada pode envelhecer em relação ao ambiente.
 - Separar as redes `edge` e `data` impede que o Traefik alcance os bancos, mesmo com uma rota errada.
+- O `forwardAuth` só repassa ao serviço os cabeçalhos que o Guard devolve, mas deixa passar os que o cliente mandou. Sem o middleware que apaga o `X-User-Id` de entrada, um comprador poderia se passar por outro. O problema apareceu ao desenhar o fluxo, antes de existir código que confiasse no cabeçalho.
+- Recriar o Postgres derrubou as conexões abertas do Keycloak, e a primeira requisição depois disso deu erro 500. O Keycloak se recuperou sozinho na seguinte; é um efeito esperado de reiniciar o banco, e não uma dependência entre Keycloak e Guard.

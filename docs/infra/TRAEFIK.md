@@ -25,11 +25,24 @@ Um container novo com essas labels entra na rota assim que sobe, sem reiniciar o
 
 ## Rotas atuais
 
-| Caminho | Destino |
-|---|---|
-| `/auth` | Keycloak |
+| Caminho | Destino | Middleware |
+|---|---|---|
+| `/auth` | Keycloak | nenhum (login e chaves públicas precisam ser acessíveis) |
+| `/api/whoami` | `traefik/whoami`, rota temporária de teste | `buyer-auth` |
 
-As rotas dos serviços (`/api/...`) entram com cada serviço.
+As rotas dos serviços (`/api/...`) entram com cada serviço. A rota `/api/whoami` existe só para testar o Guard de ponta a ponta: o container devolve a requisição que recebeu, com os cabeçalhos, e sai quando os serviços reais existirem.
+
+## Middlewares
+
+Além das labels dos containers, o Traefik lê um arquivo fixo, [`infra/traefik/dynamic.yml`](../../infra/traefik/dynamic.yml) (opção `--providers.file.filename`). Nele ficam os middlewares que não pertencem a um container específico:
+
+| Middleware | O que faz |
+|---|---|
+| `strip-identity` | Apaga o cabeçalho `X-User-Id` que vier do cliente |
+| `guard-auth` | `forwardAuth`: pergunta ao Guard se a requisição pode passar e repassa o `X-User-Id` que ele devolver |
+| `buyer-auth` | Corrente com os dois acima, nessa ordem. É o que as rotas de compra usam |
+
+Detalhes do fluxo em [GUARD.md](GUARD.md).
 
 ## Redes
 
