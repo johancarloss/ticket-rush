@@ -13,8 +13,8 @@ O sistema tem seis serviços com papéis diferentes: Inventário e Checkout conc
 
 | Serviço | Linguagem | Responsável |
 |---|---|---|
-| Inventário | TypeScript (Node.js) | Bruno ou Luis |
-| Checkout | TypeScript (Node.js) | Luis ou Bruno |
+| Inventário | TypeScript (Node.js) | Luis |
+| Checkout | TypeScript (Node.js) | Bruno |
 | Pagamento (simulado), Notificação, Estatísticas | Go | Diego |
 | Guard, bots de carga | Go | Johan |
 

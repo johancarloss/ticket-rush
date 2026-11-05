@@ -72,8 +72,8 @@ Fora do diagrama, para não poluir: todos os containers exportam métricas para 
 | Edge | Traefik (pronto) | nenhum (configuração por labels) | Johan |
 | Guard | Go | nenhum (contadores por conta no Redis) | Johan |
 | Identidade | Keycloak (pronto) | usuários e credenciais | Johan |
-| Inventário | TypeScript | schema `inventory`: eventos, assentos, holds | Bruno ou Luis |
-| Checkout | TypeScript | schema `checkout`: pedidos e estado da SAGA | Luis ou Bruno |
+| Inventário | TypeScript | schema `inventory`: eventos, assentos, holds | Luis |
+| Checkout | TypeScript | schema `checkout`: pedidos e estado da SAGA | Bruno |
 | Pagamento (externo) | Go | transações simuladas | Diego |
 | Notificação | Go | schema `notification`: pedidos já notificados | Diego |
 | Estatísticas | Go | schema `stats`: contadores de vendas | Diego |

@@ -4,6 +4,16 @@ Mudanças notáveis do projeto, agrupadas por versão. Cada versão corresponde 
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-11-05
+
+Divisão do grupo registrada e Guard atualizado, antes da apresentação do Projeto 02.
+
+### Documentação
+- Responsáveis definidos no README, no C4 de containers e no ADR-003: Bruno com o Checkout e Luis com o Inventário.
+
+### Segurança
+- Guard compilado com Go 1.27.3, que corrige a GO-2026-6809 em `crypto/x509`, encontrada pelo `govulncheck`.
+
 ## [0.3.0] - 2026-10-13
 
 Infraestrutura e entrada do sistema rodando, parte do setup do Projeto 02. Os serviços da aplicação entram nas próximas versões.

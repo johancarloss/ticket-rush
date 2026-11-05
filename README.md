@@ -100,8 +100,8 @@ Mais detalhes:
 |---|---|---|
 | Johan Carlos | Go | Plataforma: Traefik, Guard, Keycloak, CI/CD, Blue-Green/Canary, observabilidade; bots de carga |
 | Diego de Carvalho Dias | Go | Pagamento (simulado), Notificação, Estatísticas |
-| Bruno Almeida dos Santos | TypeScript | Inventário ou Checkout (a definir entre Bruno e Luis) |
-| Luis Antonio Feliciano da Silva | TypeScript | Checkout ou Inventário (a definir entre Bruno e Luis) |
+| Bruno Almeida dos Santos | TypeScript | Checkout |
+| Luis Antonio Feliciano da Silva | TypeScript | Inventário |
 
 ## Tecnologias
 
