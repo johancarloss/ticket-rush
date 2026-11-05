@@ -107,10 +107,12 @@ O Guard tem uma dependência: [`github.com/golang-jwt/jwt/v5`](https://github.co
 |---|---|
 | Versão fixa | `v5.3.1`, publicada em janeiro de 2026, bem depois do período de espera de duas semanas |
 | Integridade | O `go.sum` guarda o hash do código da dependência; se o código baixado mudar, o build falha |
-| Toolchain fixo | `toolchain go1.27.2` no `go.mod` e `golang:1.27.2-alpine` no Dockerfile |
+| Toolchain fixo | `toolchain go1.27.3` no `go.mod` e `golang:1.27.3-alpine` no Dockerfile |
 | Vulnerabilidades conhecidas | `govulncheck` (ferramenta oficial do Go) |
 
 O `govulncheck` encontrou 9 vulnerabilidades alcançáveis pelo código, todas na biblioteca padrão do Go 1.27.1 (servidor e cliente HTTP), e nenhuma na `golang-jwt`. Todas foram corrigidas no Go 1.27.2, e com ele o resultado foi "No vulnerabilities found". O Go 1.27.2 tinha só três dias de publicação, abaixo das duas semanas de espera adotadas para dependências. A regra de espera existe para dar tempo de a comunidade descobrir pacotes de terceiros comprometidos; uma correção de segurança publicada pela própria equipe do Go, na imagem oficial, é o caso contrário: esperar deixaria as falhas conhecidas abertas.
+
+Depois disso, a GO-2026-6809 (`crypto/x509`, corrigida no Go 1.27.3) reprovou o CI em 05/11/2026, em um PR só de documentação. O código não tinha mudado: a vulnerabilidade foi publicada depois, e o `govulncheck` passou a acusar. O Guard foi atualizado para o Go 1.27.3.
 
 ```bash
 cd services/guard
