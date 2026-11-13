@@ -4,6 +4,17 @@ Mudanças notáveis do projeto, agrupadas por versão. Cada versão corresponde 
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-11-13
+
+Tarefas do Projeto 03 organizadas, depois da apresentação do Projeto 02.
+
+### Documentação
+- Mapa das tarefas do Projeto 03 em `docs/tarefas/README.md`: fases até 11/12, grafo de dependências, caminho crítico, divisão por integrante e o ciclo de uma tarefa. As tarefas estão nas issues #13 a #64, com o quadro do projeto no GitHub.
+- Modelo de issue **Tarefa** e seção Tarefas no CONTRIBUTING.
+
+### Segurança
+- Guard compilado com Go 1.27.4, que corrige a GO-2026-6859 em `net/http`, encontrada pelo `govulncheck`.
+
 ## [0.3.1] - 2026-11-05
 
 Divisão do grupo registrada e Guard atualizado, antes da apresentação do Projeto 02.
