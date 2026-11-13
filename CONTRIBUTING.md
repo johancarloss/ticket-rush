@@ -72,6 +72,10 @@ O PR de release (`develop → main`) é aberto a cada marco concluído, sem espe
 
 O CHANGELOG indica qual versão foi entregue em cada Projeto. A versão `v1.0.0` fica para a entrega final (Projeto 03).
 
+## Tarefas
+
+Todo trabalho do Projeto 03 é uma issue no milestone *Projeto 03*, com responsável, fase, dependências e o que documentar ao fechar. O mapa com o grafo de dependências, a divisão por pessoa e o ciclo de uma tarefa (pegar, branch, fazer, documentar, PR, merge) está em [docs/tarefas/README.md](docs/tarefas/README.md). Tarefa nova usa o modelo **Tarefa** do GitHub.
+
 ## Decisões de arquitetura
 
 Decisão que muda a arquitetura (padrão novo, tecnologia nova, mudança de fronteira entre serviços) ganha um ADR em `docs/adr/`, seguindo o formato dos existentes, e entra no índice `docs/adr/README.md`. ADR aceito não é editado para mudar de ideia; a decisão nova vira outro ADR, que indica qual substitui.
