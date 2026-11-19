@@ -10,29 +10,30 @@ permissions:
   contents: read
 
 jobs:
+  # Lists the services touched by the PR, so a change in one service does not rerun every other one.
+  changes:
+    name: Changes
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.diff.outputs.services }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - id: diff
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: ./scripts/ci-changed-services.sh "$BASE_SHA" | tee -a "$GITHUB_OUTPUT"
+
+  # One block per service. Go services use go-service.yml, TypeScript services use ts-service.yml.
   guard:
     name: Guard (Go)
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: services/guard
-    steps:
-      # Actions are pinned to a commit hash: a tag can be moved to point at different code, a hash cannot.
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version-file: services/guard/go.mod
-          cache-dependency-path: services/guard/go.sum
-      - name: Formatting
-        run: test -z "$(gofmt -l .)" || (gofmt -l . && exit 1)
-      - name: Vet
-        run: go vet ./...
-      - name: Tests
-        run: go test -race ./...
-      - name: Known vulnerabilities
-        run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
-      - name: Docker image
-        run: docker build -t ticket-rush/guard:ci .
+    needs: changes
+    if: contains(needs.changes.outputs.services, ' guard ')
+    uses: ./.github/workflows/go-service.yml
+    with:
+      path: services/guard
+      image: guard
 
   compose:
     name: Compose
