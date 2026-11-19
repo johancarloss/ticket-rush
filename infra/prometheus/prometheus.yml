@@ -1,0 +1,23 @@
+# What Prometheus scrapes (ADR-010). A new service adds one job below, as described in docs/guides/INSTRUMENTACAO.md.
+global:
+  # Short interval so a load test of a few minutes still has enough points per series
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: traefik
+    static_configs:
+      - targets: ["traefik:8082"]
+
+  # Services with replicas are found through Docker's DNS: the service name resolves to one address per replica,
+  # so each replica becomes its own target.
+  - job_name: guard
+    dns_sd_configs:
+      - names: ["guard"]
+        type: A
+        port: 8080
+        refresh_interval: 10s
