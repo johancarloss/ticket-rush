@@ -115,13 +115,20 @@ services:
       KEYCLOAK_JWKS_URL: http://keycloak:8080/auth/realms/ticket-rush/protocol/openid-connect/certs
       TOKEN_ISSUER: http://localhost:${TRAEFIK_HTTP_PORT:-8180}/auth/realms/ticket-rush
       TOKEN_AUDIENCE: ticket-rush-api
+      # Purchase requests per second per account (ADR-002); counters live in Redis so both replicas share them
+      RATE_LIMIT_PER_SECOND: ${GUARD_RATE_LIMIT_PER_SECOND:-10}
+      REDIS_ADDR: redis:6379
       OTEL_SERVICE_NAME: guard
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
     deploy:
       # Two replicas so purchases keep working if one of them dies (ADR-002, fail-closed)
       replicas: 2
+    depends_on:
+      redis:
+        condition: service_healthy
     networks:
       - edge
+      - data
       - observability
     healthcheck:
       test: ["CMD", "/guard", "-healthcheck"]
