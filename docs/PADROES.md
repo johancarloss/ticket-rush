@@ -12,7 +12,7 @@ Padrões da seção 5 do enunciado aplicados no Ticket Rush, com o problema que 
 | Confiabilidade | Retry e DLQ | Um consumidor que falha não pode perder a mensagem nem travar as outras; após 3 falhas ela vai para um stream de mensagens mortas | [ADR-006](adr/0006-REDIS-STREAMS.md) |
 | Desempenho | Queues / PubSub / Messaging Fanout | Um evento, vários consumidores, cada um no seu ritmo (consumer groups do Redis Streams) | [ADR-006](adr/0006-REDIS-STREAMS.md) |
 | Desempenho | Cache-Aside | Milhares de compradores consultando o mapa de assentos ao mesmo tempo | [ADR-004](adr/0004-CONTROLE-DO-HOLD.md) |
-| Desempenho | Rate Limit / Throttling | Bots de cambistas martelando as rotas de compra; limite por conta no Guard | [ADR-002](adr/0002-TRAEFIK-GUARD.md) |
+| Desempenho | Rate Limit / Throttling | Bots de cambistas martelando as rotas de compra; limite por conta no Guard, com contadores no Redis | [ADR-002](adr/0002-TRAEFIK-GUARD.md), [GUARD.md](infra/GUARD.md#limite-por-conta-rate-limit) |
 | Desempenho | Database-per-service (isolamento lógico) | Serviços acoplados pelo banco; cada serviço tem schema e usuário próprios | [ADR-005](adr/0005-SCHEMA-POR-SERVICO.md) |
 | Segurança | API Gateway | Ponto único de entrada que autentica e limita antes de chegar nos serviços | [ADR-002](adr/0002-TRAEFIK-GUARD.md) |
 | Segurança | OAuth 2.0, OpenID Connect e JWT | Saber quem é o comprador sem que todo serviço possa criar tokens | [ADR-007](adr/0007-KEYCLOAK.md) |

@@ -27,9 +27,9 @@ Os três só abrem da própria máquina (`127.0.0.1`). Para ver do seu computado
 | Origem | Métricas principais | Traces |
 |---|---|---|
 | Traefik | `traefik_router_requests_total` e `traefik_router_request_duration_seconds` por rota, método e código | Começa o trace de cada requisição; trechos `AuthRequest` (consulta ao Guard) e `ReverseProxy` (encaminhamento ao serviço) |
-| Guard | `guard_decisions_total{result}` (liberado ou o motivo da recusa) e `guard_verify_duration_seconds` | Trecho `GET /verify`, dentro do trace aberto pelo Traefik |
+| Guard | `guard_decisions_total{result}` (liberado ou o motivo da recusa, incluindo `rate_limited`), `guard_verify_duration_seconds` e `guard_rate_limit_errors_total` (liberadas sem contar, com o Redis fora) | Trecho `GET /verify`, dentro do trace aberto pelo Traefik |
 
-Os rótulos de `result` no Guard são os mesmos motivos dos logs ([GUARD.md](GUARD.md#rotas)): `allowed`, `missing_token`, `malformed_token`, `bad_algorithm`, `bad_signature`, `unknown_key`, `wrong_issuer`, `wrong_audience`, `token_expired` e `invalid_token`.
+Os rótulos de `result` no Guard são os mesmos motivos dos logs ([GUARD.md](GUARD.md#rotas)): `allowed`, `rate_limited`, `missing_token`, `malformed_token`, `bad_algorithm`, `bad_signature`, `unknown_key`, `wrong_issuer`, `wrong_audience`, `token_expired` e `invalid_token`.
 
 O Traefik também manda traces das próprias consultas à API do Docker (o que ele faz para descobrir os containers). Para procurar compras no Jaeger, filtre pela operação `GET` ou `POST` ou pelo serviço de destino.
 
