@@ -11,3 +11,6 @@ Cada arquivo registra uma decisão de arquitetura: o contexto, o que foi decidid
 | [005](0005-SCHEMA-POR-SERVICO.md) | Um Postgres com um schema por serviço | aceita |
 | [006](0006-REDIS-STREAMS.md) | Redis Streams para os eventos e Redis com três papéis | aceita |
 | [007](0007-KEYCLOAK.md) | Keycloak como servidor de identidade | aceita |
+| [010](0010-OBSERVABILIDADE.md) | Observabilidade com Prometheus, Jaeger e Grafana, instrumentados por OpenTelemetry | aceita |
+
+Os números 008 (Circuit Breaker, issue #38) e 009 (Blue-Green e Canary, issue #49) estão reservados para as decisões que entram com essas issues.

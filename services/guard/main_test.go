@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 )
 
 const (
@@ -27,6 +28,7 @@ const (
 type fixture struct {
 	key     *rsa.PrivateKey
 	handler http.HandlerFunc
+	metrics *metrics
 }
 
 func newFixture(t *testing.T) *fixture {
@@ -49,7 +51,8 @@ func newFixture(t *testing.T) *fixture {
 
 	validator := &tokenValidator{keys: newKeySet(jwksServer.URL), issuer: testIssuer, audience: testAudience}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	return &fixture{key: key, handler: verifyHandler(logger, validator)}
+	telemetry := newMetrics()
+	return &fixture{key: key, handler: verifyHandler(logger, validator, telemetry), metrics: telemetry}
 }
 
 func validClaims() jwt.MapClaims {
@@ -169,5 +172,22 @@ func TestHealth(t *testing.T) {
 	handleHealth(rec, httptest.NewRequest(http.MethodGet, "/health", nil))
 	if rec.Code != http.StatusOK {
 		t.Errorf("status = %d, want 200", rec.Code)
+	}
+}
+
+func TestVerifyCountsDecisions(t *testing.T) {
+	f := newFixture(t)
+	f.verify("Bearer " + f.sign(t, validClaims(), testKid))
+	f.verify("")
+	f.verify("")
+
+	if got := testutil.ToFloat64(f.metrics.decisions.WithLabelValues("allowed")); got != 1 {
+		t.Errorf("allowed = %v, want 1", got)
+	}
+	if got := testutil.ToFloat64(f.metrics.decisions.WithLabelValues("missing_token")); got != 2 {
+		t.Errorf("missing_token = %v, want 2", got)
+	}
+	if got := testutil.CollectAndCount(f.metrics.duration); got != 1 {
+		t.Errorf("duration histogram series = %v, want 1", got)
 	}
 }

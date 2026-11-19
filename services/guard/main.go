@@ -27,6 +27,13 @@ func main() {
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
+	shutdownTracing, err := setupTracing(context.Background())
+	if err != nil {
+		logger.Error("tracing setup failed", "error", err)
+		os.Exit(1)
+	}
+	telemetry := newMetrics()
+
 	validator := &tokenValidator{
 		keys:     newKeySet(mustEnv("KEYCLOAK_JWKS_URL")),
 		issuer:   mustEnv("TOKEN_ISSUER"),
@@ -35,11 +42,13 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", handleHealth)
-	mux.HandleFunc("/verify", verifyHandler(logger, validator))
+	mux.HandleFunc("/verify", verifyHandler(logger, validator, telemetry))
+	// Only reachable inside the Compose networks: no Traefik router points at the Guard.
+	mux.Handle("GET /metrics", telemetry.handler())
 
 	server := &http.Server{
 		Addr:              ":" + port,
-		Handler:           mux,
+		Handler:           traced(mux),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
@@ -61,6 +70,9 @@ func main() {
 	if err := server.Shutdown(ctx); err != nil {
 		logger.Error("shutdown failed", "error", err)
 	}
+	if err := shutdownTracing(ctx); err != nil {
+		logger.Error("tracing shutdown failed", "error", err)
+	}
 	logger.Info("guard stopped")
 }
 
@@ -71,21 +83,25 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 
 // verifyHandler answers Traefik's forwardAuth: 2xx lets the request through, anything else is sent back to the client.
 // On success it returns who the buyer is in X-User-Id and X-User-Roles, which Traefik forwards to the service.
-func verifyHandler(logger *slog.Logger, validator *tokenValidator) http.HandlerFunc {
+func verifyHandler(logger *slog.Logger, validator *tokenValidator, telemetry *metrics) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		started := time.Now()
 		method := r.Header.Get("X-Forwarded-Method")
 		uri := r.Header.Get("X-Forwarded-Uri")
 
 		token, ok := bearerToken(r.Header.Get("Authorization"))
 		if !ok || token == "" {
 			logger.Info("request denied", "reason", "missing_token", "method", method, "uri", uri)
+			telemetry.record("missing_token", started)
 			writeJSONError(w, http.StatusUnauthorized, "missing or malformed bearer token")
 			return
 		}
 
 		user, err := validator.validate(token)
 		if err != nil {
-			logger.Info("request denied", "reason", denyReason(err), "method", method, "uri", uri, "error", err.Error())
+			reason := denyReason(err)
+			logger.Info("request denied", "reason", reason, "method", method, "uri", uri, "error", err.Error())
+			telemetry.record(reason, started)
 			writeJSONError(w, http.StatusUnauthorized, "invalid token")
 			return
 		}
@@ -94,6 +110,7 @@ func verifyHandler(logger *slog.Logger, validator *tokenValidator) http.HandlerF
 		w.Header().Set("X-User-Id", user.ID)
 		w.Header().Set("X-User-Roles", strings.Join(user.Roles, ","))
 		w.WriteHeader(http.StatusOK)
+		telemetry.record("allowed", started)
 	}
 }
 

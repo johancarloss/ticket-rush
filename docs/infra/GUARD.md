@@ -65,6 +65,7 @@ Sem qualquer uma delas, o Guard não sobe.
 |---|---|---|
 | `GET /health` | Healthcheck do Docker | `200 {"status":"ok"}` |
 | `/verify` | Traefik (forwardAuth) | `200` com `X-User-Id` e `X-User-Roles`; `401 {"error": ...}` |
+| `GET /metrics` | Prometheus | Métricas no formato do Prometheus: decisões por resultado e duração de cada decisão ([OBSERVABILIDADE.md](OBSERVABILIDADE.md#o-que-já-é-coletado)) |
 
 Cada decisão é registrada em log JSON, com o motivo:
 
@@ -73,7 +74,9 @@ Cada decisão é registrada em log JSON, com o motivo:
 {"level":"INFO","msg":"request denied","reason":"unknown_key","method":"GET","uri":"/api/whoami"}
 ```
 
-Motivos possíveis: `missing_token`, `malformed_token`, `bad_algorithm`, `bad_signature`, `unknown_key`, `wrong_issuer`, `wrong_audience`, `token_expired`, `invalid_token`.
+Motivos possíveis: `missing_token`, `malformed_token`, `bad_algorithm`, `bad_signature`, `unknown_key`, `wrong_issuer`, `wrong_audience`, `token_expired`, `invalid_token`. Os mesmos motivos são o rótulo `result` da métrica `guard_decisions_total`, com `allowed` para as liberadas.
+
+Cada requisição ao `/verify` também vira um trecho de trace no Jaeger, dentro do trace que o Traefik abriu para a compra (o Traefik repassa o cabeçalho `traceparent`). Sem a variável `OTEL_EXPORTER_OTLP_ENDPOINT`, o tracing fica desligado.
 
 ## Resultados verificados (v0.3)
 
@@ -101,11 +104,19 @@ Os testes geram um par de chaves RSA e um servidor de chaves falso, e cobrem um 
 
 ## Dependências e supply chain
 
-O Guard tem uma dependência: [`github.com/golang-jwt/jwt/v5`](https://github.com/golang-jwt/jwt), para conferir os tokens. Criptografia é o tipo de código que não vale escrever à mão: erros como aceitar `alg: none` são vulnerabilidades conhecidas de implementações caseiras.
+O Guard tem três dependências diretas:
+
+| Biblioteca | Para quê | Versão |
+|---|---|---|
+| [`github.com/golang-jwt/jwt/v5`](https://github.com/golang-jwt/jwt) | Conferir os tokens. Criptografia é o tipo de código que não vale escrever à mão: erros como aceitar `alg: none` são vulnerabilidades conhecidas de implementações caseiras | v5.3.1 (janeiro de 2026) |
+| [`github.com/prometheus/client_golang`](https://github.com/prometheus/client_golang) | Expor `GET /metrics` | v1.25.0 (08/10/2026) |
+| [OpenTelemetry Go](https://github.com/open-telemetry/opentelemetry-go) (`otel`, `sdk`, `otlptracehttp` e `otelhttp`) | Traces | v1.47.0 e v0.72.0 (02/10/2026) |
+
+As do Prometheus e do OpenTelemetry entraram com a observabilidade ([ADR-010](../adr/0010-OBSERVABILIDADE.md)). Elas trazem indiretamente o `golang.org/x/net` na v0.59.0, com cinco vulnerabilidades no código de HTTP/2 que o Guard alcança (GO-2026-6603, 6610, 6611, 6612 e 6617), todas corrigidas na v0.60.0. O `govulncheck` acusou na hora, e o `go.mod` fixa a v0.60.0, publicada em 08/10/2026, bem depois do período de espera.
 
 | Cuidado | Como |
 |---|---|
-| Versão fixa | `v5.3.1`, publicada em janeiro de 2026, bem depois do período de espera de duas semanas |
+| Versão fixa | Todas as versões acima têm mais de duas semanas de publicação |
 | Integridade | O `go.sum` guarda o hash do código da dependência; se o código baixado mudar, o build falha |
 | Toolchain fixo | `toolchain go1.27.4` no `go.mod` e `golang:1.27.4-alpine` no Dockerfile |
 | Vulnerabilidades conhecidas | `govulncheck` (ferramenta oficial do Go) |

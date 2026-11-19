@@ -1,0 +1,10 @@
+# Dashboards are JSON files in infra/grafana/dashboards, versioned in Git (issue #47 adds the sale and SAGA panels).
+apiVersion: 1
+
+providers:
+  - name: ticket-rush
+    folder: Ticket Rush
+    type: file
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards

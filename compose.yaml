@@ -12,6 +12,14 @@ services:
       - --api.insecure=true
       - --ping=true
       - --providers.file.filename=/etc/traefik/dynamic.yml
+      # Metrics on a separate entrypoint that is not published, so only Prometheus reaches them
+      - --entrypoints.metrics.address=:8082
+      - --metrics.prometheus=true
+      - --metrics.prometheus.entrypoint=metrics
+      - --metrics.prometheus.addrouterslabels=true
+      # Each request starts a trace here; traceparent is forwarded to the Guard and to the services
+      - --tracing.serviceName=traefik
+      - --tracing.otlp.http.endpoint=http://jaeger:4318/v1/traces
     ports:
       - "${TRAEFIK_HTTP_PORT:-8180}:80"
       - "127.0.0.1:${TRAEFIK_DASHBOARD_PORT:-8181}:8080"
@@ -20,6 +28,7 @@ services:
       - ./infra/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
     networks:
       - edge
+      - observability
     healthcheck:
       test: ["CMD", "traefik", "healthcheck", "--ping"]
       interval: 10s
@@ -106,11 +115,14 @@ services:
       KEYCLOAK_JWKS_URL: http://keycloak:8080/auth/realms/ticket-rush/protocol/openid-connect/certs
       TOKEN_ISSUER: http://localhost:${TRAEFIK_HTTP_PORT:-8180}/auth/realms/ticket-rush
       TOKEN_AUDIENCE: ticket-rush-api
+      OTEL_SERVICE_NAME: guard
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
     deploy:
       # Two replicas so purchases keep working if one of them dies (ADR-002, fail-closed)
       replicas: 2
     networks:
       - edge
+      - observability
     healthcheck:
       test: ["CMD", "/guard", "-healthcheck"]
       interval: 10s
@@ -130,10 +142,65 @@ services:
       - traefik.http.routers.whoami.middlewares=buyer-auth@file
       - traefik.http.services.whoami.loadbalancer.server.port=80
 
+  # Observability (ADR-010). The three panels are published only on 127.0.0.1, like the Traefik dashboard.
+  prometheus:
+    image: prom/prometheus:v3.15.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=15d
+    ports:
+      - "127.0.0.1:${PROMETHEUS_PORT:-8183}:9090"
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - observability
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9090/-/ready"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  jaeger:
+    # Jaeger v2 is built on the OpenTelemetry Collector and receives OTLP directly (4317 gRPC, 4318 HTTP).
+    # The all-in-one image keeps traces in memory, which is enough for test runs.
+    image: jaegertracing/jaeger:2.22.0
+    ports:
+      - "127.0.0.1:${JAEGER_UI_PORT:-8184}:16686"
+    networks:
+      - observability
+
+  grafana:
+    image: grafana/grafana:13.2.6
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+    ports:
+      - "127.0.0.1:${GRAFANA_PORT:-8182}:3000"
+    volumes:
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    networks:
+      - observability
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
 networks:
   edge:
   data:
+  observability:
 
 volumes:
   postgres-data:
   redis-data:
+  prometheus-data:
+  grafana-data:
