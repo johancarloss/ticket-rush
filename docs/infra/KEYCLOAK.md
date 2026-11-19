@@ -70,8 +70,31 @@ O fluxo de senha direta foi removido no OAuth 2.1 porque o aplicativo vê a senh
 
 | Endereço | O quê |
 |---|---|
-| `http://localhost:8180/auth/admin/` | Console de administração (usuário e senha `KEYCLOAK_ADMIN_*` do `.env`). Deve ficar restrito antes de expor o sistema ([issue #3](https://github.com/johancarloss/ticket-rush/issues/3)) |
+| `http://127.0.0.1:8185/auth/admin/` | Console de administração (usuário e senha `KEYCLOAK_ADMIN_*` do `.env`). Só abre da própria máquina; de fora, use um túnel SSH (`ssh -L 8185:127.0.0.1:8185 <vps>`) |
 | `http://localhost:8180/auth/realms/ticket-rush/.well-known/openid-configuration` | Descrição pública do realm (endereços de login, token e chaves) |
 | `http://keycloak:8080/auth/realms/ticket-rush/protocol/openid-connect/certs` | Chaves públicas (JWKS), pela rede interna. É de onde o Guard as busca |
+
+### Console de administração fechado na entrada pública
+
+Pela entrada pública (porta 8180), `/auth/admin` e `/auth/realms/master` respondem **403**. O `master` também fica fechado porque é o realm onde o administrador faz login; sem ele, nem a tela de login do administrador aparece para quem está de fora. O realm `ticket-rush` continua aberto, porque o login dos compradores, os tokens e as chaves públicas precisam ser alcançáveis.
+
+O console inteiro continua acessível pela porta `8185`, publicada só em `127.0.0.1`, como o painel do Traefik. O Keycloak monta os links do console com esse endereço (`KC_HOSTNAME_ADMIN`). Os scripts que usam a API de administração (por exemplo, a criação de contas de teste) também usam essa porta.
+
+Verificado em 19/11/2026:
+
+| Pela entrada pública (8180) | Resultado |
+|---|---|
+| `/auth/admin/`, `/auth/admin/master/console/` | 403 |
+| `/auth/realms/master/...` | 403 |
+| API de administração com um token válido de administrador | 403 |
+| Variações do caminho: `//admin`, `./admin`, `%61dmin`, `admin%2F`, `ticket-rush/../master`, `%2e%2e/master`, `%6Daster` | 403 (o Traefik normaliza o caminho antes de aplicar a regra) |
+| `/auth/ADMIN/`, `/auth/realms/MASTER/...` | 404 do próprio Keycloak, que diferencia maiúsculas de minúsculas |
+| Login e chaves públicas do realm `ticket-rush` | 200 |
+| Token de comprador passando pelo Guard | 200 |
+
+| Pela porta local (8185) | Resultado |
+|---|---|
+| Console e login do administrador | 200 |
+| API de administração | Responde (contagem de usuários do realm) |
 
 O emissor gravado nos tokens é sempre o endereço público (`localhost:8180`), definido por `KC_HOSTNAME`, mesmo quando o token é pedido pela rede interna.

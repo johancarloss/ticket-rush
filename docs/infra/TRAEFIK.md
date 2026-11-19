@@ -28,6 +28,7 @@ Um container novo com essas labels entra na rota assim que sobe, sem reiniciar o
 | Caminho | Destino | Middleware |
 |---|---|---|
 | `/auth` | Keycloak | nenhum (login e chaves públicas precisam ser acessíveis) |
+| `/auth/admin`, `/auth/realms/master` | Keycloak, com prioridade maior que a rota acima | `deny-all`: 403 para todos ([KEYCLOAK.md](KEYCLOAK.md#console-de-administração-fechado-na-entrada-pública)) |
 | `/api/whoami` | `traefik/whoami`, rota temporária de teste | `buyer-auth` |
 
 As rotas dos serviços (`/api/...`) entram com cada serviço. A rota `/api/whoami` existe só para testar o Guard de ponta a ponta: o container devolve a requisição que recebeu, com os cabeçalhos, e sai quando os serviços reais existirem.
@@ -41,14 +42,23 @@ Além das labels dos containers, o Traefik lê um arquivo fixo, [`infra/traefik/
 | `strip-identity` | Apaga os cabeçalhos `X-User-Id` e `X-User-Roles` que vierem do cliente |
 | `guard-auth` | `forwardAuth`: pergunta ao Guard se a requisição pode passar e repassa o `X-User-Id` e o `X-User-Roles` que ele devolver |
 | `buyer-auth` | Corrente com os dois acima, nessa ordem. É o que as rotas de compra usam |
+| `deny-all` | `ipAllowList` que só aceita o `127.0.0.1` do próprio Traefik. Nenhuma requisição vinda de fora tem essa origem, então todas recebem 403 |
 
 Detalhes do fluxo em [GUARD.md](GUARD.md).
 
 ## Redes
 
-O Traefik está só na rede `edge`. Bancos e Redis estão só na rede `data`. Assim, mesmo com uma rota configurada errada, o Traefik não consegue alcançar o Postgres nem o Redis. O Keycloak está nas duas, porque recebe tráfego do Traefik e usa o Postgres.
+O Traefik está nas redes `edge` e `observability` (esta para o Prometheus coletar as métricas dele e para ele mandar os traces ao Jaeger). Bancos e Redis estão só na rede `data`. Assim, mesmo com uma rota configurada errada, o Traefik não consegue alcançar o Postgres nem o Redis. O Keycloak está em `edge` e `data`, porque recebe tráfego do Traefik e usa o Postgres.
 
 A opção `--providers.docker.network=ticket-rush_edge` diz ao Traefik por qual rede falar com containers que estão em mais de uma.
+
+## Entradas
+
+| Entrada | Porta no container | Publicada em | Para quê |
+|---|---|---|---|
+| `web` | 80 | `8180`, em todas as interfaces | Todo o tráfego dos compradores |
+| `admin` | 8085 | `127.0.0.1:8185` | Console de administração do Keycloak |
+| `metrics` | 8082 | não publicada | Métricas para o Prometheus, pela rede `observability` |
 
 ## Painel
 
