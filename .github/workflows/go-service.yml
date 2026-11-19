@@ -10,8 +10,9 @@ on:
         type: string
       image:
         description: Image name used for the test build
-        required: true
+        required: false
         type: string
+        default: ""
 
 permissions:
   contents: read
@@ -40,4 +41,6 @@ jobs:
       - name: Known vulnerabilities
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
       - name: Docker image
+        # Tools that run outside Compose (the load bots) have no image
+        if: inputs.image != ''
         run: docker build -t "ticket-rush/${{ inputs.image }}:ci" .
