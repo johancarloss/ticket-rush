@@ -33,8 +33,8 @@ Os serviços confiam no `X-User-Id` e no `X-User-Roles`. Se um comprador mandass
 | Versão | Regra |
 |---|---|
 | v0.3, primeira fatia | Exigia só a presença do cabeçalho `Authorization: Bearer <token>` |
-| **v0.3 (atual)** | Confere o token emitido pelo Keycloak e devolve `X-User-Id` e `X-User-Roles` |
-| próxima | Limite de 10 requisições de compra por segundo por conta, com contadores no Redis |
+| v0.3 | Confere o token emitido pelo Keycloak e devolve `X-User-Id` e `X-User-Roles` |
+| **v0.4 (atual)** | Limite de requisições de compra por segundo por conta (10 por padrão), com contadores no Redis |
 
 Para um token ser aceito, todas as condições precisam valer:
 
@@ -78,6 +78,35 @@ Motivos possíveis: `missing_token`, `malformed_token`, `bad_algorithm`, `bad_si
 
 Cada requisição ao `/verify` também vira um trecho de trace no Jaeger, dentro do trace que o Traefik abriu para a compra (o Traefik repassa o cabeçalho `traceparent`). Sem a variável `OTEL_EXPORTER_OTLP_ENDPOINT`, o tracing fica desligado.
 
+## Limite por conta (rate limit)
+
+Depois de conferir o token, o Guard soma a requisição no contador da conta no segundo atual. Passou do limite, responde `429 Too Many Requests` com `Retry-After: 1`, e o Traefik devolve isso ao comprador sem a requisição chegar ao serviço. O limite vem de `GUARD_RATE_LIMIT_PER_SECOND` no `.env` (padrão 10, o valor inicial do ADR-002, a ser calibrado com os bots).
+
+| Escolha | Por quê |
+|---|---|
+| **Por conta, não por IP** | Um cambista com muitos IPs continua sendo uma conta só (ADR-002). Por isso o contador vem depois do token: sem token válido não existe conta, e a requisição já foi recusada com 401 |
+| **Contador no Redis** | As duas réplicas do Guard dividem as requisições. Um contador em memória deixaria passar o dobro, metade em cada réplica |
+| **Janela fixa de 1 segundo** | Uma ida ao Redis por requisição (`INCR` e `EXPIRE` num script só, para a chave nunca ficar sem validade). O preço: na virada de um segundo para o outro, uma conta pode fazer até o dobro do limite. Uma janela deslizante tiraria esse pico, mas guardaria um registro por requisição. Para barrar o bot que martela sem parar, a janela fixa basta |
+| **Chave `guard:rl:<conta>:<segundo>`, com validade de 2 s** | O Redis apaga os contadores sozinho. Não acumulam, mesmo com milhares de contas |
+| **Tempo-limite de 50 ms** | Um Redis lento não pode segurar todas as compras |
+
+### Se o Redis cair: deixa passar (fail-open)
+
+Sem o Redis, o Guard continua conferindo o token e libera a requisição sem contar. Cada vez que isso acontece, ele registra um aviso no log e soma em `guard_rate_limit_errors_total`.
+
+É o contrário do que acontece quando o Guard cai (fail-closed, ADR-002), e a diferença é o que cada falha põe em risco. Sem o Guard, o sistema não sabe quem é o comprador, e vender assim criaria pedidos sem dono. Sem o contador, o sistema ainda sabe quem é o comprador e só perde a proteção contra excesso; o limite de 4 assentos por comprador continua no Checkout, então um bot que passar nesse intervalo não leva mais que 4 assentos por conta. Bloquear todas as compras por causa do contador transformaria o Redis num ponto único de falha da venda. O teste de resiliência com o Redis fora (issue #57) mede esse cenário com carga.
+
+## Resultados verificados (v0.4)
+
+Numa cópia isolada do sistema, em 19/11/2026, com limite 10:
+
+| Situação | Resultado |
+|---|---|
+| Um bot com a mesma conta, 300 requisições a 49 por segundo durante 6 s | 70 liberadas (11,4 por segundo) e 230 recusadas com 429. O que passa de 10 por segundo vem da virada entre segundos |
+| 30 requisições simultâneas da mesma conta | 20 liberadas e 10 recusadas: caíram em dois segundos diferentes, o pico da janela fixa |
+| Outra conta no mesmo instante | 3 de 3 liberadas; o contador de uma conta não afeta a outra |
+| Redis parado | 5 de 5 liberadas, cada uma cerca de 60 ms mais lenta (o tempo-limite), e `guard_rate_limit_errors_total` em 5 |
+
 ## Resultados verificados (v0.3)
 
 Com o Keycloak real e a rota de teste `/api/whoami`:
@@ -102,14 +131,17 @@ go test ./...
 
 Os testes geram um par de chaves RSA e um servidor de chaves falso, e cobrem um token válido e 14 casos de recusa: sem cabeçalho, outro esquema, `Bearer` vazio, texto que não é token, vencido, sem validade, sem usuário, outro emissor, outra audiência, chave desconhecida, payload adulterado, `alg: none`, HS256 com a chave pública como segredo, e assinatura de outra chave.
 
+O rate limit tem dois grupos de testes. No handler, um limitador falso cobre a recusa com 429 e `Retry-After`, a passagem com o Redis fora (fail-open) e o fato de que requisições sem token válido nem chegam ao contador. O contador em si roda contra um Redis em memória ([miniredis](https://github.com/alicebob/miniredis), só nos testes): 10 liberadas e a 11ª recusada no mesmo segundo, outra conta não afetada, o contador zerando no segundo seguinte, as chaves expirando e o erro quando o Redis não responde.
+
 ## Dependências e supply chain
 
-O Guard tem três dependências diretas:
+O Guard tem quatro dependências diretas, mais o `miniredis` usado só nos testes:
 
 | Biblioteca | Para quê | Versão |
 |---|---|---|
 | [`github.com/golang-jwt/jwt/v5`](https://github.com/golang-jwt/jwt) | Conferir os tokens. Criptografia é o tipo de código que não vale escrever à mão: erros como aceitar `alg: none` são vulnerabilidades conhecidas de implementações caseiras | v5.3.1 (janeiro de 2026) |
 | [`github.com/prometheus/client_golang`](https://github.com/prometheus/client_golang) | Expor `GET /metrics` | v1.25.0 (08/10/2026) |
+| [`github.com/redis/go-redis/v9`](https://github.com/redis/go-redis) | Contadores do rate limit | v9.23.0 (05/10/2026) |
 | [OpenTelemetry Go](https://github.com/open-telemetry/opentelemetry-go) (`otel`, `sdk`, `otlptracehttp` e `otelhttp`) | Traces | v1.47.0 e v0.72.0 (02/10/2026) |
 
 As do Prometheus e do OpenTelemetry entraram com a observabilidade ([ADR-010](../adr/0010-OBSERVABILIDADE.md)). Elas trazem indiretamente o `golang.org/x/net` na v0.59.0, com cinco vulnerabilidades no código de HTTP/2 que o Guard alcança (GO-2026-6603, 6610, 6611, 6612 e 6617), todas corrigidas na v0.60.0. O `govulncheck` acusou na hora, e o `go.mod` fixa a v0.60.0, publicada em 08/10/2026, bem depois do período de espera.

@@ -9,9 +9,12 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/redis/go-redis/v9"
 )
 
 func main() {
@@ -34,6 +37,15 @@ func main() {
 	}
 	telemetry := newMetrics()
 
+	limitPerSecond, err := strconv.ParseInt(envOr("RATE_LIMIT_PER_SECOND", "10"), 10, 64)
+	if err != nil || limitPerSecond < 1 {
+		logger.Error("invalid RATE_LIMIT_PER_SECOND", "value", os.Getenv("RATE_LIMIT_PER_SECOND"))
+		os.Exit(1)
+	}
+	redisClient := redis.NewClient(&redis.Options{Addr: envOr("REDIS_ADDR", "redis:6379")})
+	defer redisClient.Close()
+	rateLimit := newFixedWindow(redisClient, limitPerSecond)
+
 	validator := &tokenValidator{
 		keys:     newKeySet(mustEnv("KEYCLOAK_JWKS_URL")),
 		issuer:   mustEnv("TOKEN_ISSUER"),
@@ -42,7 +54,7 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", handleHealth)
-	mux.HandleFunc("/verify", verifyHandler(logger, validator, telemetry))
+	mux.HandleFunc("/verify", verifyHandler(logger, validator, rateLimit, telemetry))
 	// Only reachable inside the Compose networks: no Traefik router points at the Guard.
 	mux.Handle("GET /metrics", telemetry.handler())
 
@@ -83,7 +95,7 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 
 // verifyHandler answers Traefik's forwardAuth: 2xx lets the request through, anything else is sent back to the client.
 // On success it returns who the buyer is in X-User-Id and X-User-Roles, which Traefik forwards to the service.
-func verifyHandler(logger *slog.Logger, validator *tokenValidator, telemetry *metrics) http.HandlerFunc {
+func verifyHandler(logger *slog.Logger, validator *tokenValidator, rateLimit limiter, telemetry *metrics) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		started := time.Now()
 		method := r.Header.Get("X-Forwarded-Method")
@@ -103,6 +115,21 @@ func verifyHandler(logger *slog.Logger, validator *tokenValidator, telemetry *me
 			logger.Info("request denied", "reason", reason, "method", method, "uri", uri, "error", err.Error())
 			telemetry.record(reason, started)
 			writeJSONError(w, http.StatusUnauthorized, "invalid token")
+			return
+		}
+
+		// The limit is per account, not per IP, so it comes after the token says who the account is (ADR-002).
+		allowed, err := rateLimit.allow(r.Context(), user.ID)
+		if err != nil {
+			// Fail-open: without Redis the token is still checked and the 4-seat limit still lives in the Checkout,
+			// so blocking every purchase would cost more than letting a bot through for a while (docs/infra/GUARD.md).
+			logger.Warn("rate limit unavailable, letting request through", "user_id", user.ID, "error", err.Error())
+			telemetry.limiterErrors.Inc()
+		} else if !allowed {
+			logger.Info("request denied", "reason", "rate_limited", "user_id", user.ID, "method", method, "uri", uri)
+			telemetry.record("rate_limited", started)
+			w.Header().Set("Retry-After", "1")
+			writeJSONError(w, http.StatusTooManyRequests, "too many requests")
 			return
 		}
 

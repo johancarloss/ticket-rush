@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"math/big"
@@ -29,6 +31,19 @@ type fixture struct {
 	key     *rsa.PrivateKey
 	handler http.HandlerFunc
 	metrics *metrics
+	limiter *fakeLimiter
+}
+
+// fakeLimiter lets the handler tests choose the limiter's answer; fixedWindow itself is tested in ratelimit_test.go.
+type fakeLimiter struct {
+	deny  bool
+	err   error
+	calls int
+}
+
+func (f *fakeLimiter) allow(context.Context, string) (bool, error) {
+	f.calls++
+	return !f.deny, f.err
 }
 
 func newFixture(t *testing.T) *fixture {
@@ -52,7 +67,8 @@ func newFixture(t *testing.T) *fixture {
 	validator := &tokenValidator{keys: newKeySet(jwksServer.URL), issuer: testIssuer, audience: testAudience}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	telemetry := newMetrics()
-	return &fixture{key: key, handler: verifyHandler(logger, validator, telemetry), metrics: telemetry}
+	lim := &fakeLimiter{}
+	return &fixture{key: key, handler: verifyHandler(logger, validator, lim, telemetry), metrics: telemetry, limiter: lim}
 }
 
 func validClaims() jwt.MapClaims {
@@ -189,5 +205,49 @@ func TestVerifyCountsDecisions(t *testing.T) {
 	}
 	if got := testutil.CollectAndCount(f.metrics.duration); got != 1 {
 		t.Errorf("duration histogram series = %v, want 1", got)
+	}
+}
+
+func TestVerifyRateLimited(t *testing.T) {
+	f := newFixture(t)
+	f.limiter.deny = true
+
+	rec := f.verify("Bearer " + f.sign(t, validClaims(), testKid))
+
+	if rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("status = %d, want 429", rec.Code)
+	}
+	if rec.Header().Get("Retry-After") != "1" {
+		t.Errorf("Retry-After = %q, want 1", rec.Header().Get("Retry-After"))
+	}
+	if rec.Header().Get("X-User-Id") != "" {
+		t.Error("a limited request must not carry X-User-Id")
+	}
+	if got := testutil.ToFloat64(f.metrics.decisions.WithLabelValues("rate_limited")); got != 1 {
+		t.Errorf("rate_limited = %v, want 1", got)
+	}
+}
+
+func TestVerifyLetsThroughWhenLimiterFails(t *testing.T) {
+	f := newFixture(t)
+	f.limiter.err = errors.New("redis down")
+
+	rec := f.verify("Bearer " + f.sign(t, validClaims(), testKid))
+
+	if rec.Code != http.StatusOK || rec.Header().Get("X-User-Id") != "buyer-42" {
+		t.Fatalf("status = %d, user = %q; want 200 for buyer-42 (fail-open)", rec.Code, rec.Header().Get("X-User-Id"))
+	}
+	if got := testutil.ToFloat64(f.metrics.limiterErrors); got != 1 {
+		t.Errorf("limiter errors = %v, want 1", got)
+	}
+}
+
+func TestVerifyDoesNotCountInvalidTokens(t *testing.T) {
+	f := newFixture(t)
+	f.verify("")
+	f.verify("Bearer not.a.token")
+
+	if f.limiter.calls != 0 {
+		t.Errorf("limiter called %d times; requests without a valid account must not reach it", f.limiter.calls)
 	}
 }

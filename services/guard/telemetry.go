@@ -18,9 +18,10 @@ import (
 
 // metrics are what Prometheus scrapes from GET /metrics (docs/guides/INSTRUMENTACAO.md).
 type metrics struct {
-	registry  *prometheus.Registry
-	decisions *prometheus.CounterVec
-	duration  prometheus.Histogram
+	registry      *prometheus.Registry
+	decisions     *prometheus.CounterVec
+	duration      prometheus.Histogram
+	limiterErrors prometheus.Counter
 }
 
 func newMetrics() *metrics {
@@ -35,8 +36,12 @@ func newMetrics() *metrics {
 			Help:    "Time to answer one forwardAuth request.",
 			Buckets: []float64{.0005, .001, .0025, .005, .01, .025, .05, .1, .25},
 		}),
+		limiterErrors: prometheus.NewCounter(prometheus.CounterOpts{
+			Name: "guard_rate_limit_errors_total",
+			Help: "Requests let through because the rate limit could not be checked (Redis down or slow).",
+		}),
 	}
-	m.registry.MustRegister(m.decisions, m.duration,
+	m.registry.MustRegister(m.decisions, m.duration, m.limiterErrors,
 		collectors.NewGoCollector(), collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
 	return m
 }
