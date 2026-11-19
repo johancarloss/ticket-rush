@@ -35,6 +35,15 @@ jobs:
       path: services/guard
       image: guard
 
+  cisample:
+    name: CI sample (TypeScript)
+    needs: changes
+    if: contains(needs.changes.outputs.services, ' cisample ')
+    uses: ./.github/workflows/ts-service.yml
+    with:
+      path: services/cisample
+      image: cisample
+
   compose:
     name: Compose
     runs-on: ubuntu-latest
