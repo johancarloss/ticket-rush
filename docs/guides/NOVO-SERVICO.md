@@ -77,9 +77,12 @@ Acrescente o serviço ao `compose.yaml`:
     depends_on:
       postgres:
         condition: service_healthy
+      OTEL_SERVICE_NAME: inventory
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
     networks:
       - edge          # recebe tráfego do Traefik e fala com os outros serviços
       - data          # só se usa Postgres ou Redis
+      - observability # Prometheus coleta as métricas e o serviço manda os traces ao Jaeger
     healthcheck:
       # Imagens alpine têm o wget do busybox; imagens distroless usam o próprio binário
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
@@ -161,5 +164,6 @@ PR para a `develop` ([CONTRIBUTING.md](../../CONTRIBUTING.md#pull-requests)), co
 - [ ] Labels do Traefik só se o serviço recebe tráfego de fora; rotas de compra com `buyer-auth@file`
 - [ ] Variáveis novas no `.env.example`
 - [ ] Job no CI e entrada no Dependabot
+- [ ] `GET /metrics`, traces e job no `infra/prometheus/prometheus.yml` ([guia de instrumentação](INSTRUMENTACAO.md))
 - [ ] `docs/services/<SERVICO>.md` e linha no COMO-EXECUTAR
 - [ ] `docker compose up -d --build` com o serviço `(healthy)`

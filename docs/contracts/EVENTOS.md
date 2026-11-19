@@ -28,6 +28,7 @@ Publicado pelo Checkout, via Transactional Outbox, quando um pedido chega a `CON
   "version": 1,
   "occurred_at": "2026-11-20T14:03:12.481Z",
   "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+  "traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
   "order_id": "7",
   "buyer_id": "42",
   "buyer_email": "comprador@exemplo.com",
@@ -50,7 +51,8 @@ Publicado pelo Checkout, via Transactional Outbox, quando um pedido chega a `CON
 | `type` | string | Sempre `TicketIssued` |
 | `version` | inteiro | Versão do formato; começa em 1 |
 | `occurred_at` | string (ISO 8601) | Momento em que o pedido foi confirmado |
-| `trace_id` | string | ID do trace distribuído, para o Jaeger ligar a compra ao processamento do evento |
+| `trace_id` | string | ID do trace distribuído, para procurar a compra no Jaeger e nos logs |
+| `traceparent` | string | Contexto do trace no formato W3C (versão, `trace_id`, ID do trecho que publicou, flags). O consumidor continua o trace a partir dele, como no [guia de instrumentação](../guides/INSTRUMENTACAO.md#eventos-pelo-redis) |
 | `order_id` | string | ID do pedido no Checkout; é a chave que os consumidores usam para ignorar repetição |
 | `buyer_id` | string | ID do comprador no Keycloak |
 | `buyer_email` | string | E-mail para a Notificação, que não tem acesso aos dados de usuário |
@@ -60,4 +62,4 @@ Publicado pelo Checkout, via Transactional Outbox, quando um pedido chega a `CON
 | `amount_cents` | inteiro | Valor total cobrado, em centavos |
 | `currency` | string | Sempre `BRL` |
 
-Os campos do topo (`message_id`, `type`, `version`, `occurred_at`, `trace_id`) descrevem a mensagem. O objeto `event` é o evento do domínio, o show para o qual os ingressos foram vendidos.
+Os campos do topo (`message_id`, `type`, `version`, `occurred_at`, `trace_id`, `traceparent`) descrevem a mensagem. O `traceparent` entrou em 19/11/2026 (ADR-010); como só acrescenta um campo, a `version` continua 1. O objeto `event` é o evento do domínio, o show para o qual os ingressos foram vendidos.

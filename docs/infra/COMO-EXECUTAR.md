@@ -3,7 +3,7 @@
 ## Requisitos
 
 - Docker com o plugin Compose. Docker 25 ou mais recente.
-- Portas livres na máquina: `8180` (entrada HTTP) e `8181` (painel do Traefik). As duas podem ser trocadas no `.env`.
+- Portas livres na máquina: `8180` (entrada HTTP), `8181` (painel do Traefik), `8182` (Grafana), `8183` (Prometheus) e `8184` (Jaeger). Todas podem ser trocadas no `.env`.
 
 ## Subir o sistema
 
@@ -26,6 +26,9 @@ python3 -c "import secrets; print(secrets.token_urlsafe(18))"
 | `http://localhost:8180/auth/` | Keycloak, passando pelo Traefik. Login de administração com `KEYCLOAK_ADMIN_USER` e `KEYCLOAK_ADMIN_PASSWORD` |
 | `http://127.0.0.1:8181/dashboard/` | Painel do Traefik, com as rotas ativas. Só acessível da própria máquina |
 | `http://localhost:8180/api/whoami` | Rota temporária que passa pelo Guard. Exige um token do Keycloak ([como obter](KEYCLOAK.md#obter-um-token)); sem ele responde 401 |
+| `http://127.0.0.1:8182/` | Grafana, com os painéis na pasta Ticket Rush. Login com `GRAFANA_ADMIN_USER` e `GRAFANA_ADMIN_PASSWORD` |
+| `http://127.0.0.1:8183/targets` | Prometheus, com o estado de cada serviço coletado |
+| `http://127.0.0.1:8184/` | Jaeger, para procurar traces |
 
 ## Comandos do dia a dia
 
@@ -36,7 +39,7 @@ python3 -c "import secrets; print(secrets.token_urlsafe(18))"
 | `docker compose up -d --build` | Subir recompilando as imagens dos serviços (necessário depois de mudar o código do Guard) |
 | `docker compose restart <serviço>` | Reiniciar um serviço |
 | `docker compose down` | Parar tudo, mantendo os dados |
-| `docker compose down -v` | Parar tudo e **apagar os dados** (volumes do Postgres e do Redis) |
+| `docker compose down -v` | Parar tudo e **apagar os dados** (volumes do Postgres, do Redis, do Prometheus e do Grafana) |
 
 ## Recomeçar do zero
 
@@ -59,5 +62,6 @@ Isso apaga todos os dados do Postgres, do Redis e do Keycloak.
 | Keycloak | [KEYCLOAK.md](KEYCLOAK.md) |
 | Guard (2 réplicas) | [GUARD.md](GUARD.md) |
 | whoami (temporário) | [TRAEFIK.md](TRAEFIK.md#rotas-atuais) |
+| Prometheus, Jaeger e Grafana | [OBSERVABILIDADE.md](OBSERVABILIDADE.md) |
 
 Os serviços da aplicação (Inventário, Checkout, Pagamento, Notificação, Estatísticas) ainda não estão no Compose; cada um entra com o próprio esqueleto.
