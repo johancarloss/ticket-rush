@@ -8,6 +8,8 @@ services:
       - --providers.docker.exposedbydefault=false
       - --providers.docker.network=ticket-rush_edge
       - --entrypoints.web.address=:80
+      # Keycloak admin console, published only on 127.0.0.1 (issue #3)
+      - --entrypoints.admin.address=:8085
       - --api.dashboard=true
       - --api.insecure=true
       - --ping=true
@@ -23,6 +25,7 @@ services:
     ports:
       - "${TRAEFIK_HTTP_PORT:-8180}:80"
       - "127.0.0.1:${TRAEFIK_DASHBOARD_PORT:-8181}:8080"
+      - "127.0.0.1:${KEYCLOAK_ADMIN_PORT:-8185}:8085"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./infra/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
@@ -83,6 +86,8 @@ services:
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
       KC_HTTP_RELATIVE_PATH: /auth
       KC_HOSTNAME: http://localhost:${TRAEFIK_HTTP_PORT:-8180}/auth
+      # The admin console builds its links with this address, which is only reachable from the machine itself
+      KC_HOSTNAME_ADMIN: http://localhost:${KEYCLOAK_ADMIN_PORT:-8185}/auth
       KC_PROXY_HEADERS: xforwarded
       KC_HEALTH_ENABLED: "true"
       KC_TEST_USERS_PASSWORD: ${KC_TEST_USERS_PASSWORD}
@@ -96,8 +101,20 @@ services:
       - data
     labels:
       - traefik.enable=true
+      # Public: login, tokens and public keys of the ticket-rush realm
       - traefik.http.routers.keycloak.rule=PathPrefix(`/auth`)
       - traefik.http.routers.keycloak.entrypoints=web
+      - traefik.http.routers.keycloak.service=keycloak
+      # Admin console and the master realm (where the admin logs in) answer 403 on the public entrypoint
+      - traefik.http.routers.keycloak-admin-blocked.rule=PathPrefix(`/auth/admin`) || PathPrefix(`/auth/realms/master`)
+      - traefik.http.routers.keycloak-admin-blocked.entrypoints=web
+      - traefik.http.routers.keycloak-admin-blocked.priority=100
+      - traefik.http.routers.keycloak-admin-blocked.middlewares=deny-all@file
+      - traefik.http.routers.keycloak-admin-blocked.service=keycloak
+      # The whole Keycloak on the admin entrypoint, published only on 127.0.0.1
+      - traefik.http.routers.keycloak-admin.rule=PathPrefix(`/auth`)
+      - traefik.http.routers.keycloak-admin.entrypoints=admin
+      - traefik.http.routers.keycloak-admin.service=keycloak
       - traefik.http.services.keycloak.loadbalancer.server.port=8080
     healthcheck:
       # The image has no curl; bash opens a TCP socket to the management port instead

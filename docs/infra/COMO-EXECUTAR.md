@@ -3,7 +3,7 @@
 ## Requisitos
 
 - Docker com o plugin Compose. Docker 25 ou mais recente.
-- Portas livres na máquina: `8180` (entrada HTTP), `8181` (painel do Traefik), `8182` (Grafana), `8183` (Prometheus) e `8184` (Jaeger). Todas podem ser trocadas no `.env`.
+- Portas livres na máquina: `8180` (entrada HTTP), `8181` (painel do Traefik), `8182` (Grafana), `8183` (Prometheus), `8184` (Jaeger) e `8185` (console do Keycloak). Todas podem ser trocadas no `.env`.
 
 ## Subir o sistema
 
@@ -23,7 +23,8 @@ python3 -c "import secrets; print(secrets.token_urlsafe(18))"
 
 | Endereço | O quê |
 |---|---|
-| `http://localhost:8180/auth/` | Keycloak, passando pelo Traefik. Login de administração com `KEYCLOAK_ADMIN_USER` e `KEYCLOAK_ADMIN_PASSWORD` |
+| `http://localhost:8180/auth/` | Keycloak, passando pelo Traefik: login dos compradores e chaves públicas do realm `ticket-rush` |
+| `http://127.0.0.1:8185/auth/admin/` | Console de administração do Keycloak, com `KEYCLOAK_ADMIN_USER` e `KEYCLOAK_ADMIN_PASSWORD`. Só da própria máquina |
 | `http://127.0.0.1:8181/dashboard/` | Painel do Traefik, com as rotas ativas. Só acessível da própria máquina |
 | `http://localhost:8180/api/whoami` | Rota temporária que passa pelo Guard. Exige um token do Keycloak ([como obter](KEYCLOAK.md#obter-um-token)); sem ele responde 401 |
 | `http://127.0.0.1:8182/` | Grafana, com os painéis na pasta Ticket Rush. Login com `GRAFANA_ADMIN_USER` e `GRAFANA_ADMIN_PASSWORD` |
