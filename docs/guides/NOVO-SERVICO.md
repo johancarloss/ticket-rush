@@ -133,32 +133,12 @@ Para testar, obtenha um token como em [KEYCLOAK.md](../infra/KEYCLOAK.md#obter-u
 
 ### 7. CI
 
-Acrescente um job ao [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml), com as actions fixadas pelos mesmos hashes já usados no arquivo.
+O CI já tem um modelo pronto para cada linguagem. O serviço só precisa de um bloco no [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) chamando o modelo com a sua pasta, e das entradas no Dependabot. O passo a passo, com o bloco para copiar, está em [CI.md](../infra/CI.md#como-incluir-um-serviço).
 
-TypeScript:
+Para o modelo funcionar, o serviço precisa ter:
 
-```yaml
-  inventory:
-    name: Inventory (TypeScript)
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: services/inventory
-    steps:
-      - uses: actions/checkout@<hash>  # mesmo hash dos outros jobs
-      - uses: actions/setup-node@<hash> # fixar por hash, como o checkout
-        with:
-          node-version-file: services/inventory/package.json
-      - run: npm ci
-      - run: npm run lint
-      - run: npm test
-      - run: npm audit --audit-level=high
-      - run: docker build -t ticket-rush/inventory:ci .
-```
-
-Go: copie o job do Guard trocando a pasta.
-
-E uma entrada no [`.github/dependabot.yml`](../../.github/dependabot.yml) para as dependências (`npm` ou `gomod`) e para o Dockerfile (`docker`) do serviço, com o mesmo `cooldown`.
+- **TypeScript:** `package.json` com `engines.node` (por exemplo `"engines": { "node": "24.x" }`), os scripts `test` e, se houver, `lint` e `build`, e o `package-lock.json` commitado.
+- **Go:** `go.mod` com a linha `toolchain` e o `go.sum` commitado.
 
 ### 8. Documentação
 
