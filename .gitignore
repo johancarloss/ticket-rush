@@ -3,3 +3,5 @@ node_modules/
 *.log
 dist/
 .render/
+# Access and refresh tokens of the load-test accounts (bots/README.md)
+tokens*.json
