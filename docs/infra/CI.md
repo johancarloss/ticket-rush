@@ -48,7 +48,7 @@ Um bloco no `ci.yml`, trocando o nome e a pasta (o espaço antes e depois do nom
       image: inventory
 ```
 
-Para Go, o mesmo bloco com `go-service.yml`. E duas entradas no [`.github/dependabot.yml`](../../.github/dependabot.yml), copiando as do Guard: uma para as dependências (`npm` ou `gomod`) e outra para o Dockerfile (`docker`). O Dependabot recusa pastas que ainda não existem, então essas entradas entram no mesmo PR do esqueleto.
+Para Go, o mesmo bloco com `go-service.yml`. O `image` é opcional no modelo de Go: a pasta [`bots/`](../../bots/README.md), que roda fora do Compose, usa o modelo sem ele e não tem imagem. O job **Changes** também acompanha a pasta `bots/`. E duas entradas no [`.github/dependabot.yml`](../../.github/dependabot.yml), copiando as do Guard: uma para as dependências (`npm` ou `gomod`) e outra para o Dockerfile (`docker`). O Dependabot recusa pastas que ainda não existem, então essas entradas entram no mesmo PR do esqueleto.
 
 ## Supply chain no próprio pipeline
 

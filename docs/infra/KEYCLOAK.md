@@ -11,7 +11,7 @@ A importação usa a estratégia "ignorar se já existe": se o realm `ticket-rus
 | Item | Valor | Por quê |
 |---|---|---|
 | Realm | `ticket-rush` | Separado do `master`, que é só para administrar o Keycloak |
-| Papéis | `buyer`, `organizer` | Comprador e organizador (ADR-007). Todo usuário novo recebe `buyer` |
+| Papéis | `buyer`, `organizer` | Comprador e organizador (ADR-007). Todo usuário que se cadastra ou é criado pelo console recebe `buyer`, pelo papel padrão do realm (`default-roles-ticket-rush`). A importação em lote não aplica o papel padrão, então cada usuário importado declara o seu |
 | Client | `ticket-rush-web` (público, com PKCE) | O aplicativo pelo qual o comprador faz login |
 | Audiência | `ticket-rush-api` | Todo token do client sai com `aud: ticket-rush-api`; o Guard recusa tokens sem ela |
 | Validade do token | 5 minutos | Um token roubado vale pouco tempo; o refresh token renova |
@@ -24,6 +24,8 @@ A importação usa a estratégia "ignorar se já existe": se o realm `ticket-rus
 | `buyer1` | `buyer` |
 | `buyer2` | `buyer` |
 | `organizer1` | `organizer` |
+
+Para os testes de carga existem também as contas `loadbuyer0001` a `loadbuyer2000` e `loadscalper01` a `loadscalper05`, criadas e apagadas pela ferramenta em [`bots/`](../../bots/README.md#contas-de-carga-testusers) e não pelo arquivo do realm.
 
 A senha dos três vem da variável `KC_TEST_USERS_PASSWORD` do `.env`. O arquivo do realm só tem o marcador `${KC_TEST_USERS_PASSWORD}`, que o Keycloak substitui na importação, então nenhuma senha fica no repositório. Esses usuários existem para desenvolvimento e testes; uma instalação pública não deve importá-los.
 
