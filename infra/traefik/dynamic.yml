@@ -15,6 +15,13 @@ http:
           - X-User-Id
           - X-User-Roles
 
+    # Answers 403 to every client. Requests reaching Traefik never come from its own loopback, so nothing passes;
+    # used on the public entrypoint for paths that only the machine itself may open (issue #3).
+    deny-all:
+      ipAllowList:
+        sourceRange:
+          - 127.0.0.1/32
+
     buyer-auth:
       chain:
         middlewares:
