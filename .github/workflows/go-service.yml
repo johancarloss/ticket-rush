@@ -24,6 +24,11 @@ jobs:
     defaults:
       run:
         working-directory: ${{ inputs.path }}
+    env:
+      # Passed through the environment instead of ${{ }} inside the scripts, so a value can never become shell code
+      # (CodeQL actions/code-injection).
+      IMAGE: ticket-rush/${{ inputs.image }}:ci
+      SBOM: sbom-${{ inputs.image }}.cdx.json
     steps:
       # Actions are pinned to a commit hash: a tag can be moved to point at different code, a hash cannot.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -43,7 +48,7 @@ jobs:
       - name: Docker image
         # Tools that run outside Compose (the load bots) have no image
         if: inputs.image != ''
-        run: docker build -t "ticket-rush/${{ inputs.image }}:ci" .
+        run: docker build -t "$IMAGE" .
       # DevSecOps (docs/infra/CI.md): vulnerabilities with a fix available fail the PR; the SBOM is kept as an artifact.
       - name: Install Trivy (checksum verified)
         if: inputs.image != ''
@@ -52,14 +57,13 @@ jobs:
         if: inputs.image != ''
         run: >-
           "$RUNNER_TEMP/bin/trivy" image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1
-          "ticket-rush/${{ inputs.image }}:ci"
+          "$IMAGE"
       - name: SBOM
         if: inputs.image != ''
         run: >-
-          "$RUNNER_TEMP/bin/trivy" image --format cyclonedx --output "$RUNNER_TEMP/sbom-${{ inputs.image }}.cdx.json"
-          "ticket-rush/${{ inputs.image }}:ci"
+          "$RUNNER_TEMP/bin/trivy" image --format cyclonedx --output "$SBOM" "$IMAGE"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: inputs.image != ''
         with:
           name: sbom-${{ inputs.image }}
-          path: ${{ runner.temp }}/sbom-${{ inputs.image }}.cdx.json
+          path: ${{ inputs.path }}/sbom-${{ inputs.image }}.cdx.json

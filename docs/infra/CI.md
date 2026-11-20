@@ -63,6 +63,8 @@ Segurança como parte do pipeline, em quatro camadas, cada uma olhando uma coisa
 
 Mais o que já existia: `gitleaks` no histórico inteiro e Dependabot.
 
+Na primeira execução, o CodeQL achou um problema no próprio CI: os modelos colavam `${{ inputs.image }}` direto dentro dos scripts. Hoje o valor vem do `ci.yml` e não de quem abre o PR, mas é o padrão que vira injeção de código quando o valor passa a vir de fora (um título de PR, um nome de branch). Os modelos passaram a receber o valor por variável de ambiente (`IMAGE`, `SBOM`), e o script só lê `"$IMAGE"`.
+
 ### Por que `govulncheck` e Trivy juntos
 
 Os dois acham coisas diferentes, e a primeira execução mostrou isso no Guard. A imagem tinha o `golang.org/x/net` v0.60.0, com a CVE-2026-78661 (alta, no pacote `html`, corrigida na v0.62.0). O `govulncheck` não acusou, porque o Guard nunca chama o pacote `html`: ele só reprova o que o código alcança. O Trivy acusou, porque olha o que está compilado no binário, e não o que é chamado. A dependência foi atualizada para a v0.62.0.
