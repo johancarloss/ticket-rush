@@ -16,6 +16,7 @@ Padrões da seção 5 do enunciado aplicados no Ticket Rush, com o problema que 
 | Desempenho | Database-per-service (isolamento lógico) | Serviços acoplados pelo banco; cada serviço tem schema e usuário próprios | [ADR-005](adr/0005-SCHEMA-POR-SERVICO.md) |
 | Segurança | API Gateway | Ponto único de entrada que autentica e limita antes de chegar nos serviços | [ADR-002](adr/0002-TRAEFIK-GUARD.md) |
 | Segurança | OAuth 2.0, OpenID Connect e JWT | Saber quem é o comprador sem que todo serviço possa criar tokens | [ADR-007](adr/0007-KEYCLOAK.md) |
+| Segurança | DevSecOps | Vulnerabilidades no código, nas dependências e nas imagens só aparecem depois do deploy; cada PR passa por CodeQL, `govulncheck`/`npm audit`, Trivy na imagem e gera o SBOM | [CI.md](infra/CI.md#devsecops) |
 | Deployment | Blue-Green e Canary | Publicar versões novas durante a venda sem derrubar o sistema, usando a divisão de tráfego por peso do Traefik | [ADR-002](adr/0002-TRAEFIK-GUARD.md) (detalhes no setup do Projeto 02/03) |
 
 ## Previstos, ainda sem ADR
@@ -24,7 +25,6 @@ Padrões da seção 5 do enunciado aplicados no Ticket Rush, com o problema que 
 |---|---|---|
 | Confiabilidade | Circuit Breaker | No Checkout, para a chamada síncrona ao Inventário e ao Pagamento: se o outro lado não responde, falhar rápido em vez de prender conexões ([C4 nível 2](architecture/C4-2-CONTAINERS.md)) |
 | Segurança | Observabilidade de segurança | Métricas, logs e traces de todos os serviços no Prometheus, Grafana e Jaeger, com alertas (por exemplo, pedidos aguardando estorno) |
-| Segurança | DevSecOps | SAST, análise de dependências e de imagens no pipeline de CI |
 
 ## Conceitos usados como justificativa
 

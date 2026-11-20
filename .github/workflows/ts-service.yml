@@ -10,8 +10,9 @@ on:
         type: string
       image:
         description: Image name used for the test build
-        required: true
+        required: false
         type: string
+        default: ""
 
 permissions:
   contents: read
@@ -23,6 +24,11 @@ jobs:
     defaults:
       run:
         working-directory: ${{ inputs.path }}
+    env:
+      # Passed through the environment instead of ${{ }} inside the scripts, so a value can never become shell code
+      # (CodeQL actions/code-injection).
+      IMAGE: ticket-rush/${{ inputs.image }}:ci
+      SBOM: sbom-${{ inputs.image }}.cdx.json
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -42,4 +48,23 @@ jobs:
       - name: Known vulnerabilities
         run: npm audit --audit-level=high
       - name: Docker image
-        run: docker build -t "ticket-rush/${{ inputs.image }}:ci" .
+        if: inputs.image != ''
+        run: docker build -t "$IMAGE" .
+      # DevSecOps (docs/infra/CI.md): vulnerabilities with a fix available fail the PR; the SBOM is kept as an artifact.
+      - name: Install Trivy (checksum verified)
+        if: inputs.image != ''
+        run: $GITHUB_WORKSPACE/scripts/install-trivy.sh "$RUNNER_TEMP/bin"
+      - name: Image vulnerabilities
+        if: inputs.image != ''
+        run: >-
+          "$RUNNER_TEMP/bin/trivy" image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1
+          "$IMAGE"
+      - name: SBOM
+        if: inputs.image != ''
+        run: >-
+          "$RUNNER_TEMP/bin/trivy" image --format cyclonedx --output "$SBOM" "$IMAGE"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: inputs.image != ''
+        with:
+          name: sbom-${{ inputs.image }}
+          path: ${{ inputs.path }}/sbom-${{ inputs.image }}.cdx.json

@@ -5,3 +5,4 @@ dist/
 .render/
 # Access and refresh tokens of the load-test accounts (bots/README.md)
 tokens*.json
+sbom-*.cdx.json

@@ -65,6 +65,7 @@ flowchart LR
     PLT_DASH["#47 Painéis e alerta"]
     PLT_SEC["#48 DevSecOps"]
     PLT_DEP["#49 Blue-Green e Canary"]
+    PLT_IMG["#75 Imagens de terceiros"]
     TST_LOAD["#54 Carga 2.000 × 500"]
     TST_RES_CHK["#55 Resiliência Checkout"]
     TST_RES_PAY["#56 Resiliência Pagamento"]
@@ -149,8 +150,9 @@ flowchart LR
   DOC_ARCH --> DOC_REL
   DOC_RES --> DOC_REL
   DOC_README --> DOC_REL
+  PLT_IMG -.-> TST_LOAD
   classDef johan fill:#6f42c1,stroke:#222,color:#fff
-  class PLT_RL,PLT_CI,PLT_OBS,PLT_DASH,PLT_SEC,PLT_DEP,PLT_USR,PLT_BOT,TST_PLAN,TST_LOAD,TST_RES_GRD,DOC_QA,DOC_ARCH,DOC_RES,DOC_README,DOC_PRES,DOC_REL johan
+  class PLT_RL,PLT_CI,PLT_OBS,PLT_DASH,PLT_SEC,PLT_DEP,PLT_USR,PLT_BOT,TST_PLAN,TST_LOAD,TST_RES_GRD,DOC_QA,DOC_ARCH,DOC_RES,DOC_README,DOC_PRES,DOC_REL,PLT_IMG johan
   classDef bruno fill:#0b4884,stroke:#222,color:#fff
   class CHK_1,CHK_2,CHK_3,CHK_4,CHK_5,CHK_6,CHK_7,CHK_8,CHK_9,TST_E2E,TST_RES_CHK bruno
   classDef diego fill:#00758f,stroke:#222,color:#fff
@@ -183,6 +185,7 @@ Tarefas sem nenhuma dependência:
 - [#52](https://github.com/johancarloss/ticket-rush/issues/52) Plano de testes (Johan)
 - [#59](https://github.com/johancarloss/ticket-rush/issues/59) Perguntas ao professor (Johan)
 - [#3](https://github.com/johancarloss/ticket-rush/issues/3) Bloquear o console do Keycloak (Johan)
+- [#75](https://github.com/johancarloss/ticket-rush/issues/75) Imagens de terceiros (Johan)
 
 ## Tarefas por pessoa
 
@@ -202,6 +205,7 @@ Tarefas sem nenhuma dependência:
 | [#47](https://github.com/johancarloss/ticket-rush/issues/47) | Painéis e alerta de estorno | 3 | [#46](https://github.com/johancarloss/ticket-rush/issues/46), [#39](https://github.com/johancarloss/ticket-rush/issues/39) |
 | [#48](https://github.com/johancarloss/ticket-rush/issues/48) | DevSecOps: análise de código e de imagens | 3 | [#45](https://github.com/johancarloss/ticket-rush/issues/45) |
 | [#49](https://github.com/johancarloss/ticket-rush/issues/49) | Blue-Green e Canary pelo Traefik (ADR-009) | 3 | [#32](https://github.com/johancarloss/ticket-rush/issues/32) |
+| [#75](https://github.com/johancarloss/ticket-rush/issues/75) | Atualizar as imagens de Postgres, Redis e Keycloak (achado do DevSecOps) | 3 | nada |
 | [#54](https://github.com/johancarloss/ticket-rush/issues/54) | Carga: 2.000 bots disputando 500 assentos | 3 | [#53](https://github.com/johancarloss/ticket-rush/issues/53), [#51](https://github.com/johancarloss/ticket-rush/issues/51), [#47](https://github.com/johancarloss/ticket-rush/issues/47) |
 | [#58](https://github.com/johancarloss/ticket-rush/issues/58) | Resiliência e segurança da entrada | 3 | [#44](https://github.com/johancarloss/ticket-rush/issues/44), [#54](https://github.com/johancarloss/ticket-rush/issues/54) |
 | [#60](https://github.com/johancarloss/ticket-rush/issues/60) | C4, evolução e trade-offs atualizados | 4 | [#54](https://github.com/johancarloss/ticket-rush/issues/54) |

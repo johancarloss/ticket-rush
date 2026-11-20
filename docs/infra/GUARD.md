@@ -144,7 +144,7 @@ O Guard tem quatro dependências diretas, mais o `miniredis` usado só nos teste
 | [`github.com/redis/go-redis/v9`](https://github.com/redis/go-redis) | Contadores do rate limit | v9.23.0 (05/10/2026) |
 | [OpenTelemetry Go](https://github.com/open-telemetry/opentelemetry-go) (`otel`, `sdk`, `otlptracehttp` e `otelhttp`) | Traces | v1.47.0 e v0.72.0 (02/10/2026) |
 
-As do Prometheus e do OpenTelemetry entraram com a observabilidade ([ADR-010](../adr/0010-OBSERVABILIDADE.md)). Elas trazem indiretamente o `golang.org/x/net` na v0.59.0, com cinco vulnerabilidades no código de HTTP/2 que o Guard alcança (GO-2026-6603, 6610, 6611, 6612 e 6617), todas corrigidas na v0.60.0. O `govulncheck` acusou na hora, e o `go.mod` fixa a v0.60.0, publicada em 08/10/2026, bem depois do período de espera.
+As do Prometheus e do OpenTelemetry entraram com a observabilidade ([ADR-010](../adr/0010-OBSERVABILIDADE.md)). Elas trazem indiretamente o `golang.org/x/net` na v0.59.0, com cinco vulnerabilidades no código de HTTP/2 que o Guard alcança (GO-2026-6603, 6610, 6611, 6612 e 6617), todas corrigidas na v0.60.0. O `govulncheck` acusou na hora, e o `go.mod` fixou a v0.60.0. Em 20/11/2026, o Trivy, que entrou no CI com o DevSecOps, acusou na imagem a CVE-2026-78661 (alta, no pacote `html` do mesmo módulo, corrigida na v0.62.0). O `govulncheck` não acusava porque o Guard não chama esse pacote ([CI.md](CI.md#por-que-govulncheck-e-trivy-juntos)). O `go.mod` passou para a v0.62.0, publicada em 27/10/2026.
 
 | Cuidado | Como |
 |---|---|
