@@ -44,3 +44,22 @@ jobs:
         # Tools that run outside Compose (the load bots) have no image
         if: inputs.image != ''
         run: docker build -t "ticket-rush/${{ inputs.image }}:ci" .
+      # DevSecOps (docs/infra/CI.md): vulnerabilities with a fix available fail the PR; the SBOM is kept as an artifact.
+      - name: Install Trivy (checksum verified)
+        if: inputs.image != ''
+        run: $GITHUB_WORKSPACE/scripts/install-trivy.sh "$RUNNER_TEMP/bin"
+      - name: Image vulnerabilities
+        if: inputs.image != ''
+        run: >-
+          "$RUNNER_TEMP/bin/trivy" image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1
+          "ticket-rush/${{ inputs.image }}:ci"
+      - name: SBOM
+        if: inputs.image != ''
+        run: >-
+          "$RUNNER_TEMP/bin/trivy" image --format cyclonedx --output "$RUNNER_TEMP/sbom-${{ inputs.image }}.cdx.json"
+          "ticket-rush/${{ inputs.image }}:ci"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: inputs.image != ''
+        with:
+          name: sbom-${{ inputs.image }}
+          path: ${{ runner.temp }}/sbom-${{ inputs.image }}.cdx.json

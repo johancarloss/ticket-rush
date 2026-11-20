@@ -1,0 +1,34 @@
+# Weekly report of known vulnerabilities in the third-party images of compose.yaml (Postgres, Redis, Keycloak...).
+# It does not fail: these images are updated on purpose, in their own PR, after reading what changed (docs/infra/CI.md).
+name: Third-party images
+
+on:
+  schedule:
+    - cron: "41 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    name: Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install Trivy (checksum verified)
+        run: ./scripts/install-trivy.sh "$RUNNER_TEMP/bin"
+      - name: Scan each image
+        run: |
+          cp .env.example .env
+          {
+            echo "| Imagem | Altas | Críticas |"
+            echo "|---|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+          for image in $(docker compose config --images | grep -v '^ticket-rush/' | sort -u); do
+            "$RUNNER_TEMP/bin/trivy" image --quiet --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed \
+              --format json --output report.json "$image"
+            high=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH")] | length' report.json)
+            critical=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL")] | length' report.json)
+            echo "| \`$image\` | $high | $critical |" >> "$GITHUB_STEP_SUMMARY"
+          done

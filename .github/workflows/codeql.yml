@@ -1,0 +1,54 @@
+# Static analysis with CodeQL (DevSecOps, docs/infra/CI.md). Alerts show up in the repository's Security tab and on the PR.
+name: CodeQL
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+  schedule:
+    # Weekly, so new queries also run on code nobody touched
+    - cron: "17 6 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: CodeQL (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Go has one module per folder, so the build is listed by hand instead of relying on autobuild.
+          - language: go
+            build-mode: manual
+          # The workflows themselves: script injection through PR titles, excessive permissions, unpinned actions.
+          - language: actions
+            build-mode: none
+          # When the first TypeScript service lands, add: language: javascript-typescript, build-mode: none
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - if: matrix.language == 'go'
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: services/guard/go.mod
+          cache: false
+      - uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          queries: security-extended
+      - name: Build Go modules
+        if: matrix.language == 'go'
+        run: |
+          for module in $(find services bots -name go.mod -exec dirname {} \;); do
+            (cd "$module" && go build ./...)
+          done
+      - uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          category: /language:${{ matrix.language }}
