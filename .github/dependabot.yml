@@ -28,6 +28,24 @@ updates:
     commit-message:
       prefix: "chore(bots)"
 
+  - package-ecosystem: gomod
+    directory: /services/stats
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
+    commit-message:
+      prefix: "chore(stats)"
+
+  - package-ecosystem: docker
+    directory: /services/stats
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
+    commit-message:
+      prefix: "chore(stats)"
+
   - package-ecosystem: github-actions
     directory: /
     schedule:
