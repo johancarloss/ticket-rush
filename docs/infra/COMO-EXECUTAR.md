@@ -64,5 +64,6 @@ Isso apaga todos os dados do Postgres, do Redis e do Keycloak.
 | Guard (2 réplicas) | [GUARD.md](GUARD.md) |
 | whoami (temporário) | [TRAEFIK.md](TRAEFIK.md#rotas-atuais) |
 | Prometheus, Jaeger e Grafana | [OBSERVABILIDADE.md](OBSERVABILIDADE.md) |
+| Estatísticas | [ESTATISTICAS.md](../services/ESTATISTICAS.md) |
 
-Os serviços da aplicação (Inventário, Checkout, Pagamento, Notificação, Estatísticas) ainda não estão no Compose; cada um entra com o próprio esqueleto.
+Os outros serviços da aplicação (Inventário, Checkout, Pagamento, Notificação) ainda não estão no Compose; cada um entra com o próprio esqueleto.
