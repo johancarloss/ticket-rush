@@ -1,6 +1,6 @@
 # Estatísticas
 
-As Estatísticas mantêm os contadores de vendas de cada evento (pedidos, ingressos e valor) para o organizador. Elas leem o evento `TicketIssued` que o Checkout publica no Redis Streams quando um pedido chega a `CONFIRMED` ([ADR-001](../adr/0001-SAGA-HIBRIDA.md), [ADR-006](../adr/0006-REDIS-STREAMS.md)). É o segundo consumidor do mesmo stream, ao lado da [Notificação](NOTIFICACAO.md): cada um no seu consumer group e no seu ritmo, então uma queda das Estatísticas não atrasa o e-mail nem a compra.
+As Estatísticas mantêm os contadores de vendas de cada evento (pedidos, ingressos e valor) para o organizador. Elas leem o evento `TicketIssued` que o Checkout publica no Redis Streams quando um pedido chega a `CONFIRMED` ([ADR-001](../adr/0001-SAGA-HIBRIDA.md), [ADR-006](../adr/0006-REDIS-STREAMS.md)). É o segundo consumidor do mesmo stream, ao lado da Notificação: cada um no seu consumer group e no seu ritmo, então uma queda das Estatísticas não atrasa o e-mail nem a compra.
 
 Código em [`services/stats/`](../../services/stats/), escrito em Go. Contrato da rota em [`stats.openapi.yaml`](../contracts/stats.openapi.yaml).
 
