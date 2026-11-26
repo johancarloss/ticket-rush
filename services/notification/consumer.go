@@ -48,9 +48,14 @@ func newConsumer(client *redis.Client, stream, group, name string, handle handle
 func (c *consumer) run(ctx context.Context) {
 	wait := c.retryMin
 	for ctx.Err() == nil {
+		started := time.Now()
 		err := c.consume(ctx)
 		if err == nil || ctx.Err() != nil {
 			return
+		}
+		// A consumer that ran for a while recovered from the last outage; the next one starts with a short wait.
+		if time.Since(started) > c.retryMax {
+			wait = c.retryMin
 		}
 		c.logger.Warn("redis unavailable, retrying", "error", err.Error(), "retry_in", wait.String())
 		select {
