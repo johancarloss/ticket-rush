@@ -35,6 +35,15 @@ jobs:
       path: services/guard
       image: guard
 
+  notification:
+    name: Notification (Go)
+    needs: changes
+    if: contains(needs.changes.outputs.services, ' notification ')
+    uses: ./.github/workflows/go-service.yml
+    with:
+      path: services/notification
+      image: notification
+
   # Load bots and test-account tool; they run from another machine, so there is no image to build.
   bots:
     name: Bots (Go)

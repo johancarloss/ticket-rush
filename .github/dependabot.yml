@@ -20,6 +20,24 @@ updates:
       prefix: "chore(guard)"
 
   - package-ecosystem: gomod
+    directory: /services/notification
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
+    commit-message:
+      prefix: "chore(notification)"
+
+  - package-ecosystem: docker
+    directory: /services/notification
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
+    commit-message:
+      prefix: "chore(notification)"
+
+  - package-ecosystem: gomod
     directory: /bots
     schedule:
       interval: weekly
