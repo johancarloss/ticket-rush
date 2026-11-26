@@ -117,7 +117,7 @@ TypeScript (Node.js) e Go, PostgreSQL, Redis, Traefik, Keycloak, Docker Compose,
 | [docs/adr/](docs/adr/README.md) | Decisões de arquitetura |
 | [docs/PADROES.md](docs/PADROES.md) | Padrões aplicados e onde |
 | [docs/TESTES.md](docs/TESTES.md) | Plano de testes: critérios de sucesso, cenários de carga, resiliência e segurança, e os resultados |
-| [docs/contracts/](docs/contracts/EVENTOS.md) | Contratos de eventos entre serviços |
+| [docs/contracts/](docs/contracts/EVENTOS.md) | Contratos entre serviços: [eventos](docs/contracts/EVENTOS.md) e HTTP do [Pagamento](docs/contracts/payment.openapi.yaml) |
 | [docs/guides/NOVO-SERVICO.md](docs/guides/NOVO-SERVICO.md) | Passo a passo para criar um serviço |
 | [docs/guides/INSTRUMENTACAO.md](docs/guides/INSTRUMENTACAO.md) | Como um serviço passa a aparecer no Prometheus e no Jaeger |
 | [bots/README.md](bots/README.md) | Bots de carga e contas de teste em lote |
