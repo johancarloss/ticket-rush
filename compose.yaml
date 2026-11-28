@@ -153,6 +153,24 @@ services:
       timeout: 3s
       retries: 3
 
+  # Consumes TicketIssued from Redis Streams (ADR-006). No Traefik labels: nobody outside the Compose networks calls it.
+  notification:
+    build: ./services/notification
+    image: ticket-rush/notification:dev
+    environment:
+      REDIS_ADDR: redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - data
+      - observability
+    healthcheck:
+      test: ["CMD", "/notification", "-healthcheck"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
   # Temporary route to exercise the Guard end to end until the real services exist.
   # traefik/whoami echoes back the request it received, including the headers set by the middlewares.
   whoami:
