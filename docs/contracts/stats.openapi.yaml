@@ -1,0 +1,156 @@
+openapi: 3.1.0
+info:
+  title: Ticket Rush - Estatísticas
+  version: 1.0.0
+  description: |
+    Contadores de vendas por evento (o show), para o organizador. Os números vêm do evento `TicketIssued`
+    (`EVENTOS.md`), consumido de forma assíncrona: um pedido confirmado aparece aqui alguns instantes depois,
+    não na mesma hora.
+
+    **Autenticação.** A rota passa pelo middleware `buyer-auth@file` do Traefik: o Guard confere o token do
+    Keycloak e repassa `X-User-Id` e `X-User-Roles`. O serviço exige o papel `organizer`; um comprador
+    recebe `403`.
+
+    Valores em centavos (inteiro), datas em ISO 8601 (UTC), campos em `snake_case`.
+servers:
+  - url: http://localhost:8180
+    description: Traefik no Compose
+security:
+  - keycloak: []
+tags:
+  - name: Vendas
+    description: Contadores de vendas por evento.
+  - name: Operação
+    description: Rotas usadas pelo Docker, fora do Traefik.
+
+paths:
+  /api/stats/events/{event_id}:
+    get:
+      tags: [Vendas]
+      operationId: getEventSales
+      summary: Vendas de um evento
+      parameters:
+        - name: event_id
+          in: path
+          required: true
+          description: ID do evento no Inventário, o mesmo do campo `event.id` do `TicketIssued`.
+          schema:
+            type: string
+            minLength: 1
+          example: show-2026-12-01
+      responses:
+        '200':
+          description: Contadores do evento.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventSales'
+              example:
+                event_id: show-2026-12-01
+                event_name: Show de Abertura
+                orders: 2
+                tickets_sold: 4
+                revenue_cents: 80000
+                currency: BRL
+                updated_at: '2026-11-20T14:03:35.875Z'
+        '401':
+          description: |
+            Sem token, ou token inválido. Respondido pelo Guard, com o corpo dele (`{"error": "..."}`). Se a
+            requisição chegar ao serviço sem `X-User-Id`, ele responde `unauthenticated` no formato `Error`.
+        '403':
+          description: O usuário não tem o papel `organizer` (`forbidden`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: forbidden
+                message: only organizers can see sales
+        '404':
+          description: |
+            Nenhuma venda registrada para o evento (`no_sales`). As Estatísticas só conhecem os eventos que já
+            venderam; um evento que existe no Inventário e ainda não vendeu também responde `404`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: no_sales
+                message: no sale recorded for event show-2026-12-01
+        '429':
+          description: Limite de requisições por conta do Guard. Respondido pelo Guard, com `Retry-After`.
+        '500':
+          description: Erro ao ler os contadores (`internal_error`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /health:
+    get:
+      tags: [Operação]
+      operationId: health
+      summary: Healthcheck do Docker (rede interna)
+      security: []
+      servers:
+        - url: http://stats:8080
+      responses:
+        '200':
+          description: Serviço de pé.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    const: ok
+
+components:
+  securitySchemes:
+    keycloak:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Access token do realm `ticket-rush` (`docs/infra/KEYCLOAK.md`).
+
+  schemas:
+    EventSales:
+      type: object
+      required: [event_id, event_name, orders, tickets_sold, revenue_cents, currency, updated_at]
+      properties:
+        event_id:
+          type: string
+        event_name:
+          type: string
+          description: Nome do evento como veio no último `TicketIssued`.
+        orders:
+          type: integer
+          format: int64
+          description: Pedidos confirmados. Um pedido repetido no stream conta uma vez só.
+        tickets_sold:
+          type: integer
+          format: int64
+          description: Ingressos vendidos, um por assento.
+        revenue_cents:
+          type: integer
+          format: int64
+          description: Soma do `amount_cents` dos pedidos, em centavos.
+        currency:
+          type: string
+          const: BRL
+        updated_at:
+          type: string
+          format: date-time
+          description: Momento da última venda contada.
+
+    Error:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          enum: [unauthenticated, forbidden, no_sales, internal_error]
+        message:
+          type: string

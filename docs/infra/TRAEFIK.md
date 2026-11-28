@@ -30,6 +30,7 @@ Um container novo com essas labels entra na rota assim que sobe, sem reiniciar o
 | `/auth` | Keycloak | nenhum (login e chaves públicas precisam ser acessíveis) |
 | `/auth/admin`, `/auth/realms/master` | Keycloak, com prioridade maior que a rota acima | `deny-all`: 403 para todos ([KEYCLOAK.md](KEYCLOAK.md#console-de-administração-fechado-na-entrada-pública)) |
 | `/api/whoami` | `traefik/whoami`, rota temporária de teste | `buyer-auth` |
+| `/api/stats` | Estatísticas ([ESTATISTICAS.md](../services/ESTATISTICAS.md)); o serviço exige o papel `organizer` | `buyer-auth` |
 
 As rotas dos serviços (`/api/...`) entram com cada serviço. A rota `/api/whoami` existe só para testar o Guard de ponta a ponta: o container devolve a requisição que recebeu, com os cabeçalhos, e sai quando os serviços reais existirem.
 
