@@ -2,6 +2,27 @@
 
 O que vamos testar no Ticket Rush, como, com qual métrica e qual resultado conta como sucesso. Cada teste vem de uma promessa feita na proposta ou num ADR, e a origem aparece na tabela. Os resultados entram neste mesmo arquivo, na seção [Resultados](#resultados), à medida que cada teste roda.
 
+## Kit de avaliação da disciplina
+
+**É o teste oficial da avaliação.** O professor roda o [kit de avaliação comparativa](https://github.com/rkulesza/esd-carga-tickets) contra os cinco projetos de ingressos da turma, com a mesma massa de dados e os mesmos cenários, e compara os resultados. O Ticket Rush se liga ao kit pelo adaptador em [`kit-avaliacao/`](../kit-avaliacao/README.md), sem mudar o código do kit. O que o sistema precisou mudar está no [ADR-011](adr/0011-KIT-DE-AVALIACAO.md).
+
+| Cenário do kit | O que faz | Critério de sucesso que cobre |
+|---|---|---|
+| `carga` | Rampa até 120 compras/s por cerca de 6,5 min (perfil `padrao`) | 1, e os números de vazão e p95 |
+| `pico` | De 10 para 300 compras/s em 5 s | 5 (degradação controlada com 429/503, e não 5xx) |
+| `corrida` | 500 clientes disputando os 50 assentos do E4 | 1 (nenhum assento duas vezes; os 50 vendidos) |
+| `idempotencia` | Cada reserva e cada pagamento enviados 5 vezes em paralelo | Uma reserva e uma cobrança por compra (ADR-001) |
+| `expiracao` | 400 reservas nunca pagas, com reserva de 20 s | 2 (assentos liberados sem job, ADR-004) |
+| `compensacao` | 400 pagamentos recusados | 2 (compensação da SAGA, nenhuma cobrança) |
+
+As sete invariantes do kit, conferidas no estado final do sistema: nenhum assento vendido duas vezes; só assentos que existem, dentro da capacidade; nenhuma cobrança duplicada; toda cobrança aprovada tem ingresso e todo ingresso foi pago; valor cobrado igual à soma dos preços; uma reserva por chave de idempotência; nenhuma venda confirmada ao cliente desaparece.
+
+**Meta:** zero invariantes violadas nos seis cenários, no perfil `padrao`. A ordem das rodadas: perfil `leve` assim que a compra ponta a ponta existir (#53), depois `padrao`, e o teste de caos derrubando o `checkout` no meio da carga.
+
+**O que a nossa regra muda nos números:** o limite de 4 assentos por comprador (ADR-002) recusa com `422` parte das compras da massa de carga (1.395 combinações de usuário e evento passam de 4 assentos). O adaptador conta essas recusas como conflito, e não como erro; elas aparecem como menos vendas que um grupo sem a regra, e o relatório explica.
+
+Os cenários das próximas seções continuam valendo como complemento: medem o que o kit não mede (queda do Pagamento com estornos pendentes, Redis fora, rate limit por conta, custo do Guard no Jaeger, segurança).
+
 ## Critérios de sucesso
 
 São os da [proposta](PROPOSTA.md#critérios-de-sucesso), com a métrica que decide cada um. Os testes das próximas seções existem para medir estes seis números.
@@ -24,7 +45,7 @@ São os da [proposta](PROPOSTA.md#critérios-de-sucesso), com a métrica que dec
 | Versão testada | O commit da `develop` (ou a tag) anotado em cada resultado |
 | Dados | Um evento com 500 assentos criado pelo seed do Inventário (#23) e as contas de carga `loadbuyer0001`–`loadbuyer2000` e `loadscalper01`–`05` ([bots/README.md](../bots/README.md#contas-de-carga-testusers)) |
 | Antes de cada rodada | Banco do Inventário e do Checkout zerados (evento novo), contadores do Prometheus anotados, tokens gerados de novo (eles duram 5 minutos e os bots renovam) |
-| Ferramentas | k6 para latência e vazão; bots em Go (#51) para o fluxo completo e a conferência no banco; Prometheus, Grafana e Jaeger para o que acontece por dentro ([OBSERVABILIDADE.md](infra/OBSERVABILIDADE.md)) |
+| Ferramentas | O kit de avaliação (k6 e o verificador de invariantes do professor) para os cenários oficiais; bots em Go (#51) para os cenários próprios; Prometheus, Grafana e Jaeger para o que acontece por dentro ([OBSERVABILIDADE.md](infra/OBSERVABILIDADE.md)) |
 
 ## Níveis de teste
 

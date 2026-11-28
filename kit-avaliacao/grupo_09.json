@@ -1,0 +1,61 @@
+{
+  "grupo": "grupo_09",
+  "descricao": "Ticket Rush (grupo 09). Nomes traduzidos para a API do projeto, sem mudança no código do kit (docs/adr/0011-KIT-DE-AVALIACAO.md). O token e a chave de teste são preenchidos pelo script de execução a partir do .env.",
+  "base_url": "http://localhost:8180/api",
+  "cabecalhos": {
+    "Authorization": "Bearer {{TOKEN_DO_KIT}}"
+  },
+  "cabecalho_idempotencia": "Idempotency-Key",
+  "cabecalhos_teste": {
+    "X-Chave-Teste": "{{CHAVE_DE_TESTE}}"
+  },
+  "timeout_requisicao": "30s",
+  "rotas": {
+    "listar_assentos": {
+      "metodo": "GET",
+      "caminho": "/events/{evento_id}/seats?sector={setor}",
+      "campo_lista": "seats",
+      "campo_id": "seat_id",
+      "campo_status": "status",
+      "valores_disponivel": ["available"]
+    },
+    "reservar": {
+      "metodo": "POST",
+      "caminho": "/orders",
+      "corpo": {
+        "event_id": "{evento_id}",
+        "user_id": "{usuario_id}",
+        "seat_ids": "{assento_ids}"
+      },
+      "campo_reserva_id": "order_id",
+      "codigos_sucesso": [200, 201],
+      "codigos_conflito": [409, 422]
+    },
+    "pagar": {
+      "metodo": "POST",
+      "caminho": "/orders/{reserva_id}/pay",
+      "corpo": {
+        "method": "pix",
+        "simulation": "{simulacao}"
+      },
+      "codigos_sucesso": [200],
+      "codigos_pendente": [202],
+      "codigos_recusa": [402, 409]
+    },
+    "consultar": {
+      "metodo": "GET",
+      "caminho": "/orders/{reserva_id}",
+      "campo_status": "status",
+      "valores_status": {
+        "confirmada": ["CONFIRMED"],
+        "recusada": ["CANCELLED"],
+        "expirada": ["EXPIRED"]
+      }
+    }
+  },
+  "caos": {
+    "diretorio_compose": "../..",
+    "servico_para_derrubar": "checkout"
+  },
+  "pendencias_do_grupo": "Rotas de compra dependem do Checkout (#31) e do Inventário (#21); rotas /_teste dependem do serviço de teste (ADR-011, seção 6)."
+}
