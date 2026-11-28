@@ -1,0 +1,521 @@
+openapi: 3.1.0
+info:
+  title: Ticket Rush - Pagamento
+  version: 1.0.0
+  description: |
+    Gateway de cartão simulado (ADR-001). Quem chama é o Checkout: para cobrar e estornar durante a compra,
+    e o job de recuperação para perguntar se um pedido foi pago.
+
+    **Só pela rede interna.** O serviço não tem labels do Traefik, então nenhuma rota é alcançável de fora
+    e não há autenticação: o Checkout chama `http://payment:8080`. As rotas em `/internal/` mudam o
+    comportamento do serviço e nunca podem ganhar uma rota no Traefik (teste S7 em `docs/TESTES.md`).
+
+    **Idempotência.** `POST /charges` e `POST /refunds` exigem o cabeçalho `Idempotency-Key`. O Pagamento
+    guarda a chave junto com a resposta da primeira chamada:
+
+    | Situação | Resposta |
+    |---|---|
+    | Chave nova | Executa a operação e grava a resposta |
+    | Mesma chave e mesmo corpo, primeira chamada já terminou | Devolve a resposta gravada (mesmo código e mesmo corpo), com `Idempotent-Replayed: true`, sem cobrar ou estornar de novo |
+    | Mesma chave e mesmo corpo, primeira chamada ainda em andamento | `409` com `error: request_in_progress` e `Retry-After`; repetir depois com a mesma chave |
+    | Mesma chave com corpo diferente | `409` com `error: idempotency_key_reused`; nada é executado |
+
+    As chaves de cobrança e de estorno são independentes. O Checkout deriva as duas do ID do pedido
+    (ADR-001, regra 3), por exemplo `charge-<order_id>` e `refund-<order_id>`, para que um retry depois de
+    uma queda use a mesma chave.
+
+    **Resultado desconhecido.** Timeout, erro de rede ou `5xx` não dizem se a cobrança aconteceu: com a
+    simulação `error_after_charge_rate`, o Pagamento cobra e responde `500` de propósito. Quem chama repete
+    com a mesma chave ou consulta `GET /charges?order_id=`, e nunca cobra com uma chave nova.
+
+    Valores em centavos (inteiro), datas em ISO 8601 (UTC), campos em `snake_case`, como em `EVENTOS.md`.
+servers:
+  - url: http://payment:8080
+    description: Rede interna do Compose
+# No authentication on purpose: the service is reachable only inside the Compose networks.
+security: []
+tags:
+  - name: Cobranças
+    description: Cobrar um pedido e consultar o resultado.
+  - name: Estornos
+    description: Devolver o valor de uma cobrança aprovada.
+  - name: Simulação
+    description: Falhas e lentidão injetadas para os testes de resiliência.
+  - name: Operação
+    description: Rotas usadas pelo Docker.
+
+paths:
+  /charges:
+    post:
+      tags: [Cobranças]
+      operationId: createCharge
+      summary: Cobrar um pedido
+      description: |
+        Cobra o valor do pedido no cartão simulado. Recusa não é erro HTTP: a cobrança é registrada com
+        `status: declined` e a resposta é `201`, igual à aprovada. Quem chama decide pelo campo `status`.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChargeRequest'
+            example:
+              order_id: '7'
+              amount_cents: 40000
+              currency: BRL
+      responses:
+        '201':
+          description: Cobrança registrada, aprovada ou recusada. Numa chamada repetida, a resposta gravada.
+          headers:
+            Idempotent-Replayed:
+              $ref: '#/components/headers/IdempotentReplayed'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Charge'
+              examples:
+                approved:
+                  summary: Aprovada
+                  value:
+                    id: 3f2b8c1e-9a4d-4e7b-8c21-5d6f7a8b9c0d
+                    order_id: '7'
+                    amount_cents: 40000
+                    currency: BRL
+                    status: approved
+                    decline_reason: null
+                    created_at: '2026-11-20T14:03:11.902Z'
+                    refunded_at: null
+                declined:
+                  summary: Recusada
+                  value:
+                    id: 9c0d3f2b-8c1e-4a4d-9e7b-8c215d6f7a8b
+                    order_id: '8'
+                    amount_cents: 20000
+                    currency: BRL
+                    status: declined
+                    decline_reason: card_declined
+                    created_at: '2026-11-20T14:03:12.115Z'
+                    refunded_at: null
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/IdempotencyConflict'
+        '500':
+          $ref: '#/components/responses/UnknownOutcome'
+    get:
+      tags: [Cobranças]
+      operationId: listChargesByOrder
+      summary: Consultar as cobranças de um pedido
+      description: |
+        Usada pelo job de recuperação do Checkout para saber se um pedido parado em `PAYING` foi pago
+        (ADR-001, regra 4). Um pedido sem cobrança devolve a lista vazia, não `404`.
+      parameters:
+        - name: order_id
+          in: query
+          required: true
+          description: ID do pedido no Checkout.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+      responses:
+        '200':
+          description: Cobranças do pedido, da mais antiga para a mais nova.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChargeList'
+              example:
+                items:
+                  - id: 3f2b8c1e-9a4d-4e7b-8c21-5d6f7a8b9c0d
+                    order_id: '7'
+                    amount_cents: 40000
+                    currency: BRL
+                    status: approved
+                    decline_reason: null
+                    created_at: '2026-11-20T14:03:11.902Z'
+                    refunded_at: null
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /charges/{charge_id}:
+    get:
+      tags: [Cobranças]
+      operationId: getCharge
+      summary: Consultar uma cobrança
+      parameters:
+        - $ref: '#/components/parameters/ChargeId'
+      responses:
+        '200':
+          description: A cobrança, com o estado atual.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Charge'
+        '404':
+          $ref: '#/components/responses/ChargeNotFound'
+
+  /refunds:
+    post:
+      tags: [Estornos]
+      operationId: createRefund
+      summary: Estornar uma cobrança aprovada
+      description: |
+        Devolve o valor inteiro de uma cobrança aprovada, que passa a ter `status: refunded`. Uma cobrança
+        tem no máximo um estorno: o job de recuperação repete a chamada com a mesma chave até conseguir, e a
+        chave garante que o dinheiro volta uma vez só (ADR-001).
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefundRequest'
+            example:
+              charge_id: 3f2b8c1e-9a4d-4e7b-8c21-5d6f7a8b9c0d
+      responses:
+        '201':
+          description: Estorno feito. Numa chamada repetida, a resposta gravada.
+          headers:
+            Idempotent-Replayed:
+              $ref: '#/components/headers/IdempotentReplayed'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Refund'
+              example:
+                id: 5d6f7a8b-9c0d-4f2b-8c1e-9a4d4e7b8c21
+                charge_id: 3f2b8c1e-9a4d-4e7b-8c21-5d6f7a8b9c0d
+                order_id: '7'
+                amount_cents: 40000
+                currency: BRL
+                created_at: '2026-11-20T14:09:40.317Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/ChargeNotFound'
+        '409':
+          description: |
+            Conflito de idempotência (`idempotency_key_reused`, `request_in_progress`) ou cobrança já estornada
+            com outra chave (`charge_already_refunded`). No último caso o dinheiro já voltou, e quem chama pode
+            tratar o pedido como estornado.
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                alreadyRefunded:
+                  value:
+                    error: charge_already_refunded
+                    message: charge 3f2b8c1e-9a4d-4e7b-8c21-5d6f7a8b9c0d was already refunded
+        '422':
+          description: A cobrança foi recusada e não há o que estornar (`charge_not_refundable`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: charge_not_refundable
+                message: only approved charges can be refunded
+        '500':
+          $ref: '#/components/responses/UnknownOutcome'
+
+  /internal/simulation:
+    get:
+      tags: [Simulação]
+      operationId: getSimulation
+      summary: Ver a simulação de falhas em vigor
+      responses:
+        '200':
+          description: Valores em vigor.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Simulation'
+    put:
+      tags: [Simulação]
+      operationId: updateSimulation
+      summary: Mudar a simulação de falhas sem reiniciar o serviço
+      description: |
+        Troca todos os valores de uma vez e vale a partir da próxima requisição. Os valores iniciais vêm das
+        variáveis de ambiente `PAYMENT_FAIL_RATE`, `PAYMENT_LATENCY_MS` e `PAYMENT_ERROR_AFTER_CHARGE_RATE`, e
+        uma reinicialização volta para eles. Usada nos testes de resiliência R2 a R4 (`docs/TESTES.md`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Simulation'
+            example:
+              fail_rate: 0.2
+              latency_ms: 200
+              error_after_charge_rate: 0
+      responses:
+        '200':
+          description: Valores aplicados.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Simulation'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /health:
+    get:
+      tags: [Operação]
+      operationId: health
+      summary: Healthcheck do Docker
+      responses:
+        '200':
+          description: Serviço de pé.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    const: ok
+
+components:
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: |
+        Chave escolhida por quem chama, a mesma em toda repetição da operação. Sem ela, a resposta é `400`
+        com `error: missing_idempotency_key`.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 255
+      example: charge-7
+    ChargeId:
+      name: charge_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  headers:
+    IdempotentReplayed:
+      description: '`true` quando a resposta é a gravada numa chamada anterior com a mesma chave.'
+      schema:
+        type: string
+        enum: ['true']
+    RetryAfter:
+      description: Segundos até tentar de novo, presente com `request_in_progress`.
+      schema:
+        type: integer
+        minimum: 1
+
+  responses:
+    BadRequest:
+      description: |
+        Requisição inválida: `missing_idempotency_key` ou `invalid_request` (JSON malformado, campo faltando
+        ou valor fora do intervalo).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: invalid_request
+            message: amount_cents must be greater than zero
+    IdempotencyConflict:
+      description: |
+        `idempotency_key_reused`: a chave já foi usada com outro corpo. `request_in_progress`: a primeira
+        chamada com esta chave ainda não terminou; repetir depois do `Retry-After`, com a mesma chave.
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            reused:
+              value:
+                error: idempotency_key_reused
+                message: Idempotency-Key charge-7 was already used with a different request body
+            inProgress:
+              value:
+                error: request_in_progress
+                message: a request with Idempotency-Key charge-7 is still being processed
+    ChargeNotFound:
+      description: Nenhuma cobrança com esse ID (`charge_not_found`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: charge_not_found
+            message: no charge with id 3f2b8c1e-9a4d-4e7b-8c21-5d6f7a8b9c0d
+    UnknownOutcome:
+      description: |
+        Erro interno, real ou simulado (`internal_error`). A operação pode ter acontecido: repetir com a mesma
+        `Idempotency-Key` ou consultar `GET /charges?order_id=`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: internal_error
+            message: internal error, retry with the same Idempotency-Key
+
+  schemas:
+    ChargeRequest:
+      type: object
+      additionalProperties: false
+      required: [order_id, amount_cents, currency]
+      properties:
+        order_id:
+          type: string
+          minLength: 1
+          maxLength: 64
+          description: ID do pedido no Checkout.
+        amount_cents:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Valor total do pedido, em centavos.
+        currency:
+          type: string
+          const: BRL
+
+    Charge:
+      type: object
+      required: [id, order_id, amount_cents, currency, status, decline_reason, created_at, refunded_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        order_id:
+          type: string
+        amount_cents:
+          type: integer
+          format: int64
+        currency:
+          type: string
+          const: BRL
+        status:
+          $ref: '#/components/schemas/ChargeStatus'
+        decline_reason:
+          description: Preenchido só quando `status` é `declined`.
+          oneOf:
+            - $ref: '#/components/schemas/DeclineReason'
+            - type: 'null'
+        created_at:
+          type: string
+          format: date-time
+        refunded_at:
+          description: Preenchido só quando `status` é `refunded`.
+          type: [string, 'null']
+          format: date-time
+
+    ChargeStatus:
+      type: string
+      enum: [approved, declined, refunded]
+      description: |
+        `approved`: o dinheiro foi cobrado. `declined`: o cartão recusou e nada foi cobrado. `refunded`: foi
+        cobrado e depois devolvido por um estorno.
+
+    DeclineReason:
+      type: string
+      enum: [card_declined]
+      description: Motivo da recusa. A simulação só produz `card_declined`; valores novos podem ser acrescentados.
+
+    ChargeList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Charge'
+
+    RefundRequest:
+      type: object
+      additionalProperties: false
+      required: [charge_id]
+      properties:
+        charge_id:
+          type: string
+          format: uuid
+          description: Cobrança a estornar, por inteiro.
+
+    Refund:
+      type: object
+      required: [id, charge_id, order_id, amount_cents, currency, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        charge_id:
+          type: string
+          format: uuid
+        order_id:
+          type: string
+        amount_cents:
+          type: integer
+          format: int64
+        currency:
+          type: string
+          const: BRL
+        created_at:
+          type: string
+          format: date-time
+
+    Simulation:
+      type: object
+      additionalProperties: false
+      required: [fail_rate, latency_ms, error_after_charge_rate]
+      properties:
+        fail_rate:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Fração das cobranças recusadas com `card_declined` (0.2 recusa cerca de 20%).
+        latency_ms:
+          type: integer
+          minimum: 0
+          maximum: 60000
+          description: |
+            Atraso médio antes de responder cobranças e estornos. Cada requisição espera um tempo aleatório
+            entre a metade e uma vez e meia deste valor; 0 desliga.
+        error_after_charge_rate:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: |
+            Fração das cobranças aprovadas que são gravadas e respondidas com `500`, simulando o Pagamento que
+            cobra e cai antes de responder (o caso que leva o pedido a `AWAITING_REFUND`). Uma repetição com a
+            mesma chave devolve a cobrança aprovada.
+
+    Error:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          description: Código estável, para quem chama decidir o que fazer.
+          enum:
+            - invalid_request
+            - missing_idempotency_key
+            - idempotency_key_reused
+            - request_in_progress
+            - charge_not_found
+            - charge_not_refundable
+            - charge_already_refunded
+            - internal_error
+        message:
+          type: string
+          description: Explicação para quem lê o log; pode mudar.

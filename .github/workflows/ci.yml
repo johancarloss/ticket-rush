@@ -53,6 +53,15 @@ jobs:
     with:
       path: bots
 
+  stats:
+    name: Stats (Go)
+    needs: changes
+    if: contains(needs.changes.outputs.services, ' stats ')
+    uses: ./.github/workflows/go-service.yml
+    with:
+      path: services/stats
+      image: stats
+
   compose:
     name: Compose
     runs-on: ubuntu-latest
